@@ -11,10 +11,8 @@ def create_horizons(data, horizons=48):
             data['trading-price'].shift(-horizon)
         )
 
-    features = pd.concat(features, axis=1)
-    features.columns = [
-        f'{horizon}-{n}' for n in range(features.shape[1])
-    ]
+    features = pd.concat(features, axis=1).dropna(axis=0)
+    features.columns = [f'horizon-{n}' for n in range(features.shape[1])]
     return features
 
 
@@ -56,7 +54,10 @@ if __name__ == '__main__':
     test = data.iloc[train_split:, :]
 
     datasets = {'train': train, 'test': test}
+
     for name, data in datasets.items():
+
+        data = create_horizons(data)
         days = make_days(data)
 
         for day in days:
@@ -67,10 +68,5 @@ if __name__ == '__main__':
                 path.mkdir(exist_ok=True, parents=True)
                 day = day.strftime('%Y-%m-%d')
 
-                features = create_horizons(ds)
-                features.loc[:, 'price [$/MWh]'] = ds['trading-price']
-                features.to_csv(path / f'{day}.csv')
-
-    #  could also save the full csv....
-
-
+                ds.loc[:, 'price [$/MWh]'] = ds['horizon-0']
+                ds.to_csv(path / f'{day}.csv')
