@@ -31,31 +31,28 @@ def split_train_test(data, split=0.8):
     return train, test
 
 
-def create_horizons(data, horizons=48, scale=False):
-    features = []
-    for horizon in range(horizons):
-        features.append(
-            data['trading-price'].shift(-horizon)
-        )
-
+def create_horizons(data, horizons=48):
+    print(f' creating {horizons} horizons')
+    features = [data['trading-price'].shift(-h) for h in range(horizons)]
     features = pd.concat(features, axis=1).dropna(axis=0)
     features.columns = [f'horizon-{n}' for n in range(features.shape[1])]
     return features
 
 
 def transform_features(data, enc=None, stage='test'):
-
     if stage == 'train':
-        enc = QuantileTransformer(output_distribution='normal')
+        enc = QuantileTransformer(
+            output_distribution='normal',
+            n_quantiles='n_samples'
+        )
         trans = enc.fit_transform(data)
-
-    else:
-        assert stage == 'test'
+  
         trans = enc.transform(data)
 
     data.loc[:, :] = trans
     stats = data.describe().loc[['mean', 'min', 'max'], :]
-    print(f'feature statistics: {stats}')
+    print(f' shape: {data.shape}')
+    print(f' feature statistics: {stats}')
     return data, enc
 
 
@@ -87,28 +84,26 @@ def make_time_features(data):
 
 if __name__ == '__main__':
     data = load_nem_data()
-
     train, test = split_train_test(data, split=0.8)
-    enc = None
-
     datasets = {'train': train, 'test': test}
 
+    enc = None
     for name, data in datasets.items():
         print(f'processing {name}')
 
         price = data['trading-price']
-        data = create_horizons(data, horizons=4*2)
+        data = create_horizons(data, horizons=24*2)
         data, enc = transform_features(data, enc, stage=name)
         data.loc[:, 'price [$/MWh]'] = price
 
         assert data.isnull().sum().sum() == 0
         days = make_days(data)
 
-        for day in days[:1]:
+        for day in days[:]:
             ds = sample_date(day, data)
+
             #  sample_date returns None if data isn't correct length
             if ds is not None:
-
                 path = Path.cwd() / 'dataset' / f'{name}-episodes'
                 path.mkdir(exist_ok=True, parents=True)
 

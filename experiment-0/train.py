@@ -17,8 +17,8 @@ if __name__ == '__main__':
         "test-every": 250,
         "n-tests": "all",
         "size-scale": 8,
-        "run-name": "rl",
-        # "buffer": "experiments/battery/random.pkl",
+        "run-name": "second",
+        "buffer": "runs/first/experiments/battery/random.pkl",
         "env": {
           "name": "battery",
           "initial_charge": 0.0,

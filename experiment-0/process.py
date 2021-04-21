@@ -37,13 +37,33 @@ def sort_fn(path):
     return int(path)
 
 cp = sorted(checkpoint.get_checkpoint_paths(run), key=sort_fn)[-1]
+
+#  evaluate step
+cps = checkpoint.load(run, full=False)
+
+evaluate = []
+n_eps = 100
+for cp in cps:
+    res = defaultdict(list)
+    for name, rews in cp['rewards'].items():
+        res[f'{name}'].append(np.mean(rews))
+
+    res = pd.DataFrame(res)
+    res['checkpoint'] = cp['path'].name
+    res['path'] = cp['path']
+    evaluate.append(res)
+
+evaluate = pd.concat(evaluate, axis=0).sort_values('test-reward', ascending=False)
+cp = evaluate.iloc[0].loc['path']
+print(evaluate.head())
+
 cp = checkpoint.load_checkpoint(cp)
 
 actor = cp['nets']['actor']
 hyp = cp['hyp']
 
 for fi in fis[:]:
-    print(fi)
+    print(f' {fi.name}')
     path = Path.cwd() / 'results' / fi.stem
     path.mkdir(exist_ok=True, parents=True)
 
@@ -53,9 +73,18 @@ for fi in fis[:]:
     prices = data.loc[:, 'price [$/MWh]'].iloc[:48]
     assert prices.shape[0] == 48
 
-    linear_results = pd.DataFrame(linear.optimize(prices, initial_charge=0, timestep='30min'))
-    linear_results.to_csv(path / 'linear.csv', index=False)
+    # def run_lp
+    linear_path = path / 'linear.csv'
+    if not linear_path.exists():
+        print(f' running linear program loading {linear_path}')
+        linear_path.parent.mkdir(exist_ok=True, parents=True)
+        linear_results = pd.DataFrame(linear.optimize(prices, initial_charge=0, timestep='30min'))
+        linear_results.to_csv(linear_path, index=False)
+    else:
+        print(f' not running linear program loading {linear_path}')
+        linear_results = pd.read_csv(linear_path)
 
+    #  def run_rl()
     #  TODO this can be done in parallel
     #  instead of stacking, indexing list
     n_batteries = 1
@@ -88,6 +117,10 @@ for fi in fis[:]:
         rewards=[],
         mode='test'
     )
+
+    #  end of parallelism
+
+    #  for result in results
 
     rl_results = []
     for name in ['action', 'reward']:
