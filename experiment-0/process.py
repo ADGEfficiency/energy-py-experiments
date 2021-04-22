@@ -30,7 +30,7 @@ linear = energypylinear.Battery(
 )
 
 #  find latest checkpoint and load
-run = './experiments/battery/rl'
+run = './experiments/battery/second'
 
 def sort_fn(path):
     path = str(path).split('-')[-1]

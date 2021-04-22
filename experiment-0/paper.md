@@ -40,3 +40,7 @@ Learnings
 - quantile transform of price - rather that log, log scaling, standard, min max
 - inital charge at random to get battery moving + learn discharge is good
 - charge as a feature
+
+
+Robustness
+- test / train split

@@ -39,6 +39,8 @@ $ py process.py
 TODO
 - use streamlit
 
+What about running more than a day??
+
 
 ## Run results
 
@@ -52,4 +54,9 @@ Second
 - ? %
 - horizon 48 hours, n_quantiles='n_samples'
 - reward scale 500
-- size scale 8
+- size scale 12
+
+Third
+- use random memory of second
+- same params as second
+- fix seed at 42

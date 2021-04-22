@@ -43,10 +43,12 @@ def transform_features(data, enc=None, stage='test'):
     if stage == 'train':
         enc = QuantileTransformer(
             output_distribution='normal',
-            n_quantiles='n_samples'
+            n_quantiles=data.shape[0]
         )
         trans = enc.fit_transform(data)
-  
+ 
+    else:
+        assert stage == 'test'
         trans = enc.transform(data)
 
     data.loc[:, :] = trans

@@ -16,9 +16,9 @@ if __name__ == '__main__':
         "n-episodes": 20000,
         "test-every": 250,
         "n-tests": "all",
-        "size-scale": 8,
-        "run-name": "second",
-        "buffer": "runs/first/experiments/battery/random.pkl",
+        "size-scale": 12,
+        "run-name": "third",
+        "buffer": "experiments/battery/random.pkl",
         "env": {
           "name": "battery",
           "initial_charge": 0.0,
@@ -31,6 +31,7 @@ if __name__ == '__main__':
             "test_episodes": str(Path.cwd() / 'dataset' / 'test-episodes'),
           },
         },
+        "seed": 42,
     }
 
     main(**init_fresh(hyp))
