@@ -1,4 +1,2 @@
-sklearn
+scikit-learn
 pandas
-energypy
-energypylinear

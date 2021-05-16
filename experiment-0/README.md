@@ -1,4 +1,4 @@
-## Experiment 1 - Perfect Foresight
+# Experiment 1 - Perfect Foresight
 
 1. Create dataset of SA trading prices
 - episodes are single day, start at 00:00
@@ -6,8 +6,14 @@
 - creates test & train episodes in `./dataset`, each episode is a CSV
 - basic features of perfect foresight prices (scaled) & time to go
 
+todo
+- create horizons on a daily basis
+- OR just create the masks properly & apply later?
+
 ```
-$ nem -s 2016-01 -e 2020-12 -r trading-price
+$ pip install -r requirements.txt
+$ git clone https://github.com/ADGEfficiency/nem-data
+$ nem -s 2014-01 -e 2020-12 -r trading-price
 $ py create_dataset.py
 ```
 
