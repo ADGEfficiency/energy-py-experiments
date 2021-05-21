@@ -1,17 +1,18 @@
+import argparse
+from collections import defaultdict
+import json
 from pathlib import Path
 
-import json
 import numpy as np
 import pandas as pd
-from energypy.sampling import episode
-from energypy.memory import Buffer
-from collections import defaultdict
 
-import energypylinear
-from energypy import checkpoint
 import energypy
-
+from energypy import checkpoint
+from energypy.agent.memory import Buffer
 from energypy.datasets import NEMDataset
+from energypy.sampling import episode
+
+from linear import run_linear
 
 
 def extract_data_from_buffer(buffer, name):
@@ -19,30 +20,28 @@ def extract_data_from_buffer(buffer, name):
     data.columns = [f'{name}-{n}' for n in range(data.shape[1])]
     return data
 
+parser = argparse.ArgumentParser()
+parser.add_argument('run', default='fifth', nargs='?')
+args = parser.parse_args()
+run = args.run
 
 home = Path.cwd() / 'dataset' / 'test-episodes'
 fis = [p for p in home.iterdir() if p.suffix == '.csv']
 
-linear = energypylinear.Battery(
-    power=2,
-    capacity=4,
-    efficiency=0.9,
-)
-
 #  find latest checkpoint and load
-run = './experiments/battery/second'
+run = f'./experiments/battery/{run}'
 
+#  will get last - but we don't want this
+#  maybe move this into energypy
 def sort_fn(path):
     path = str(path).split('-')[-1]
     return int(path)
-
 cp = sorted(checkpoint.get_checkpoint_paths(run), key=sort_fn)[-1]
 
 #  evaluate step
 cps = checkpoint.load(run, full=False)
 
 evaluate = []
-n_eps = 100
 for cp in cps:
     res = defaultdict(list)
     for name, rews in cp['rewards'].items():
@@ -56,11 +55,13 @@ for cp in cps:
 evaluate = pd.concat(evaluate, axis=0).sort_values('test-reward', ascending=False)
 cp = evaluate.iloc[0].loc['path']
 print(evaluate.head())
+print(f'loaded best checkpoint from {cp}')
 
 cp = checkpoint.load_checkpoint(cp)
 
 actor = cp['nets']['actor']
 hyp = cp['hyp']
+
 
 for fi in fis[:]:
     print(f' {fi.name}')
@@ -73,16 +74,7 @@ for fi in fis[:]:
     prices = data.loc[:, 'price [$/MWh]'].iloc[:48]
     assert prices.shape[0] == 48
 
-    # def run_lp
-    linear_path = path / 'linear.csv'
-    if not linear_path.exists():
-        print(f' running linear program loading {linear_path}')
-        linear_path.parent.mkdir(exist_ok=True, parents=True)
-        linear_results = pd.DataFrame(linear.optimize(prices, initial_charge=0, timestep='30min'))
-        linear_results.to_csv(linear_path, index=False)
-    else:
-        print(f' not running linear program loading {linear_path}')
-        linear_results = pd.read_csv(linear_path)
+    linear_results = run_linear(fi)
 
     #  def run_rl()
     #  TODO this can be done in parallel

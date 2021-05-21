@@ -9,6 +9,7 @@
 todo
 - create horizons on a daily basis
 - OR just create the masks properly & apply later?
+- create a feature for high prices, negative prices? (current period only)
 
 ```
 $ pip install -r requirements.txt
@@ -25,16 +26,14 @@ $ py create_dataset.py
 $ py train.py
 ```
 
-3. Process results
+1. Process results
 - runs linear program on each test episode
 - runs trained RL battery on each episode
 - output to `./results`
 
-Questions / TODO
-- which battery to use (or average across all?)
-- is each episode in the test rollouts the same?
-- save interval data for comparisons
-- want to save last 100 episodes in checkpoint (to select best checkpoint from)
+TODO
+- shouldn't re run linear program if already have results
+- maybe run the linear program in a separate py?
 
 ```
 $ py process.py
@@ -66,3 +65,21 @@ Third
 - use random memory of second
 - same params as second
 - fix seed at 42
+
+Fourth `commit f22dcf0d675082d634621363c7e02e4eb71e3262`
+- start from 2014
+- starting f
+
+Fifth 
+- masking to zero of next day prices (done propely now!)
+- no improvement
+
+Sixth
+- idea is that we arent exploring enough
+- lower learning rate for alpha 3e-5
+- another idea is that neural nets dont have enough capacity 
+- increase size scale from 12 to 16
+
+Seventh
+- added features of medium & high prices,
+- change quantile to uniform

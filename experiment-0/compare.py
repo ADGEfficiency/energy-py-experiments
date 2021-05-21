@@ -3,19 +3,25 @@ import json
 
 import pandas as pd
 
+def compare():
+    home = Path.cwd() / 'results'
+    days = [p for p in home.iterdir() if p.is_dir()]
 
-home = Path.cwd() / 'results'
-days = [p for p in home.iterdir() if p.is_dir()]
+    ds = []
+    for p in days:
+        p = p / 'results.json'
+        data = json.loads(p.read_text())
 
-ds = []
-for p in days:
-    p = p / 'results.json'
-    data = json.loads(p.read_text())
+        data['date'] = p.parent.name
+        ds.append(data)
 
-    data['date'] = p.parent.name
-    ds.append(data)
+    ds = pd.DataFrame(ds).loc[:, ['linear-reward', 'rl-reward', 'date']]
+    ds['pct'] = ds['rl-reward'] / ds['linear-reward']
+    ds['diff'] = abs(ds['linear-reward'] - ds['rl-reward'])
+    sums = ds.sum(axis=0)
 
-ds = pd.DataFrame(ds).loc[:, ['linear-reward', 'rl-reward']]
-sums = ds.sum(axis=0)
+    print(sums['rl-reward'] / sums['linear-reward'])
+    return ds
 
-print(sums['rl-reward'] / sums['linear-reward'])
+if __name__ == '__main__':
+    compare()
