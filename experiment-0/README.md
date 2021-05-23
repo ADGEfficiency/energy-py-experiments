@@ -80,6 +80,11 @@ Sixth
 - another idea is that neural nets dont have enough capacity 
 - increase size scale from 12 to 16
 
-Seventh
+Seven
 - added features of medium & high prices,
-- change quantile to uniform
+- change quantile to uniform,
+- size scale to 14
+- initial_charge to 0 (from random)
+
+Eight
+- size scale to 10

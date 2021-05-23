@@ -6,7 +6,7 @@ from pathlib import Path
 
 if __name__ == '__main__':
     hyp = {
-        "run-name": "sixth",
+        "run-name": "eight",
 
         "initial-log-alpha": 0.0,
         "gamma": 0.99,
@@ -17,16 +17,16 @@ if __name__ == '__main__':
         "lr-alpha": 3e-5,
         "batch-size": 1024,
         "n-episodes": 20000,
-        "test-every": 250,
+        "test-every": 256,
         "n-tests": "all",
-        "size-scale": 16,
+        "size-scale": 10,
         "buffer": "./experiments/battery/random.pkl",
         "env": {
           "name": "battery",
           "initial_charge": 0.0,
+          # "initial_charge": "random",
           "episode_length": 48,
-          "n_batteries": 32,
-          "initial_charge": "random",
+          "n_batteries": 8,
           "dataset": {
             "name": "nem-dataset",
             "train_episodes": str(Path.cwd() / 'dataset' / 'train-episodes'),
