@@ -17,6 +17,7 @@ from linear import run_linear
 
 def extract_data_from_buffer(buffer, name):
     data = pd.DataFrame(np.squeeze(buff.data[name]))
+    assert data.shape[0] % 48 == 0
     data.columns = [f'{name}-{n}' for n in range(data.shape[1])]
     return data
 
@@ -57,45 +58,6 @@ actor = cp['nets']['actor']
 hyp = cp['hyp']
 
 #  parallel stuff first
-n_batteries = len(fis)
-dataset = NEMDataset(
-    train_episodes=fis,
-    test_episodes=fis,
-    n_batteries=n_batteries
-)
-env = energypy.envs.battery.Battery(
-    n_batteries=n_batteries,
-    power=2,
-    capacity=4,
-    efficiency=0.9,
-    initial_charge=0,
-    dataset=dataset,
-    episode_length=48
-)
-
-
-buff = Buffer(env.elements, size=48*len(fis))
-counters = defaultdict(int)
-
-env.setup_test()
-rewards = episode(
-    env=env,
-    buffer=buff,
-    actor=actor,
-    hyp=hyp,
-    counters=counters,
-    rewards=[],
-    mode='test'
-)
-assert buff.full
-print('finished running episodes')
-
-rl_results = []
-for name in ['action', 'reward']:
-    rl_results.append(extract_data_from_buffer(buff, name))
-rl_results = pd.concat(rl_results, axis=1)
-episode_length = hyp['env']['episode_length']
-assert rl_results.shape[0] % episode_length == 0
 
 #  somethings need to be done in sequence
 
@@ -103,7 +65,48 @@ from collections import defaultdict
 
 results = defaultdict(list)
 
-for fi, start in zip(fis, range(0, rl_results.shape[0], episode_length)):
+for fi in fis[:]:
+
+    #  run env
+    n_batteries = 1
+    dataset = NEMDataset(
+        train_episodes=[fi, ],
+        test_episodes=[fi, ],
+        n_batteries=n_batteries
+    )
+    env = energypy.envs.battery.Battery(
+        n_batteries=n_batteries,
+        power=2,
+        capacity=4,
+        efficiency=0.9,
+        initial_charge=0,
+        dataset=dataset,
+        episode_length=48
+    )
+
+    buff = Buffer(env.elements, size=hyp['env']['episode_length'])
+    counters = defaultdict(int)
+
+    env.setup_test()
+    assert not buff.full
+    rewards = episode(
+        env=env,
+        buffer=buff,
+        actor=actor,
+        hyp=hyp,
+        counters=counters,
+        rewards=[],
+        mode='test'
+    )
+    assert buff.full
+
+    rl_results = []
+    for name in ['action', 'reward', 'observation']:
+        rl_results.append(extract_data_from_buffer(buff, name))
+
+    rl_results = pd.concat(rl_results, axis=1)
+    episode_length = hyp['env']['episode_length']
+    assert rl_results.shape[0] % episode_length == 0
 
     #  make dir
     print(f' {fi.name}')
@@ -117,99 +120,25 @@ for fi, start in zip(fis, range(0, rl_results.shape[0], episode_length)):
 
     linear_results = run_linear(fi)
 
-    results['linear'].append(
-        float(linear_results['Actual [$/30min]'].sum()*-1)
+    results['linear-cost'].append(
+        float(linear_results['Actual [$/30min]'].sum())
     )
 
-    end = start + episode_length
-    ep = rl_results.iloc[start:end, :]
+    ep = rl_results
+    ep.index = prices.index
+
+    # TODO check
+    ep['price [$/MWh]'] = prices
 
     scale = hyp['reward-scale']
     reward_cols = [c for c in rl_results.columns if 'reward' in c]
     ep.loc[:, reward_cols] = ep.loc[:, reward_cols] * scale
-    ep.index = prices.index
-    ep['price [$/MWh]'] = prices
 
     ep.to_csv(path / 'rl.csv')
-    results['rl'].append(
-        float(ep['reward-0'].sum())
+    results['rl-cost'].append(
+        float(ep['reward-0'].sum() * -1)
     )
 
-    for k in ['linear', 'rl']:
-        (path / f'{k}.json').write_text(json.dumps(results[-1][k]))
+    results['date'].append(str(fi).split('/')[-1].split('.')[0])
 
-for k in ['linear', 'rl']:
-    (path.parent / f'{k}.json').write_text(json.dumps(results[k]))
-
-# for fi in fis[:]:
-#     print(f' {fi.name}')
-#     path = Path.cwd() / 'results' / fi.stem
-#     path.mkdir(exist_ok=True, parents=True)
-
-#     data = pd.read_csv(fi, index_col=0)
-#     data.to_csv(path / 'dataset.csv')
-
-#     prices = data.loc[:, 'price [$/MWh]'].iloc[:48]
-#     assert prices.shape[0] == 48
-
-#     linear_results = run_linear(fi)
-
-#     #  def run_rl()
-#     #  TODO this can be done in parallel
-#     #  instead of stacking, indexing list
-#     n_batteries = 1
-#     dataset = NEMDataset(
-#         train_episodes=[fi]*n_batteries,
-#         test_episodes=[fi]*n_batteries,
-#         n_batteries=n_batteries
-#     )
-
-#     env = energypy.envs.battery.Battery(
-#         n_batteries=n_batteries,
-#         power=2,
-#         capacity=4,
-#         efficiency=0.9,
-#         initial_charge=0,
-#         dataset=dataset,
-#         episode_length=48
-#     )
-
-#     buff = Buffer(env.elements, size=48)
-#     counters = defaultdict(int)
-
-#     env.setup_test()
-#     rewards = episode(
-#         env=env,
-#         buffer=buff,
-#         actor=actor,
-#         hyp=hyp,
-#         counters=counters,
-#         rewards=[],
-#         mode='test'
-#     )
-
-#     #  end of parallelism
-
-#     #  for result in results
-
-#     rl_results = []
-#     for name in ['action', 'reward']:
-#         rl_results.append(extract_data_from_buffer(buff, name))
-#     rl_results = pd.concat(rl_results, axis=1)
-
-#     scale = hyp['reward-scale']
-#     reward_cols = [c for c in rl_results.columns if 'reward' in c]
-
-#     rl_results.loc[:, reward_cols] = rl_results.loc[:, reward_cols] * scale
-
-#     rl_results.index = prices.index
-#     rl_results['price [$/MWh]'] = prices
-
-#     rl_results.to_csv(path / 'rl.csv')
-
-#     results = {
-#         'linear-reward': 
-#         'rl-reward': 
-#     }
-
-#     (path / 'results.json').write_text(json.dumps(results))
+pd.DataFrame(results).to_csv(path.parent / 'results.csv', index=False)

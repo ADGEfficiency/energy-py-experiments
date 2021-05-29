@@ -88,3 +88,7 @@ Seven
 
 Eight
 - size scale to 10
+
+Nine
+- add log features as well as quantiles
+- add layer to net dense

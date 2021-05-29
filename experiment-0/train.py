@@ -6,7 +6,7 @@ from pathlib import Path
 
 if __name__ == '__main__':
     hyp = {
-        "run-name": "eight",
+        "run-name": "nine",
 
         "initial-log-alpha": 0.0,
         "gamma": 0.99,
@@ -23,8 +23,7 @@ if __name__ == '__main__':
         "buffer": "./experiments/battery/random.pkl",
         "env": {
           "name": "battery",
-          "initial_charge": 0.0,
-          # "initial_charge": "random",
+          "initial_charge": 0.0, # random
           "episode_length": 48,
           "n_batteries": 8,
           "dataset": {

@@ -5,36 +5,24 @@ import pandas as pd
 import numpy as np
 
 
-def load_nem_data(subset=None):
-    home = Path.home() / 'nem-data' / 'trading-price'
-    fis = [p / 'clean.csv' for p in home.iterdir()]
-    fis = [pd.read_csv(p, index_col=0, parse_dates=True) for p in fis]
-
-    if subset:
-        fis = fis[-int(subset):]
-        print(f'subset to {len(fis)}')
-
-    cols = ['interval-start', 'trading-price', 'REGIONID']
-    data = [d[cols] for d in fis]
-    data = pd.concat(data, axis=0)
-
-    mask = data['REGIONID'] == 'SA1'
-    data = data.loc[mask, :]
-
-    data = data.set_index('interval-start')
-    data.index = pd.to_datetime(data.index)
-    data = data[~data.index.duplicated(keep='first')]
-
-    print(f' nem dataset shape: {data.shape}')
-    return data.sort_index()
+def make_time_features(data):
+    time = [t / data.shape[0] for t in range(data.shape[0])]
+    #  avoid chained assignment error
+    data = data.copy()
+    data.loc[:, 'time-to-go'] = time
+    return data
 
 
-def split_train_test(data, split=0.8):
-    train_split = int(0.8 * data.shape[0])
-    train = data.iloc[:train_split, :]
-    test = data.iloc[train_split:, :]
-    assert train.shape[0] > test.shape[0]
-    return train, test
+def make_price_features(data):
+    data['medium-price'] = 0
+    mask = data['price [$/MWh]'] > 300
+    data.loc[mask, 'medium-price'] = 1
+
+    data['high-price'] = 0
+    mask = data['price [$/MWh]'] > 800
+    data.loc[mask, 'high-price'] = 1
+
+    return data
 
 
 def create_horizons(data, horizons=48, col='trading-price'):
@@ -45,7 +33,6 @@ def create_horizons(data, horizons=48, col='trading-price'):
 
 
 def transform_features(data, enc=None, stage='test', debug=False):
-
     if stage == 'train':
         n_quantiles = data.shape[0]
         if debug:
@@ -77,11 +64,7 @@ def transform_features(data, enc=None, stage='test', debug=False):
 
 
 def make_days(df):
-    return pd.date_range(
-        start=df.index[0],
-        end=df.index[-1],
-        freq='d'
-    )
+    return pd.date_range(start=df.index[0], end=df.index[-1], freq='d')
 
 
 def sample_date(date, data):
@@ -92,15 +75,6 @@ def sample_date(date, data):
     #  49 because we need that last step for the state, next_state
     if mask.sum() == 49:
         return data.loc[mask, :]
-
-
-def make_time_features(data):
-    time = [t / data.shape[0] for t in range(data.shape[0])]
-    #  avoid chained assignment error
-    data = data.copy()
-    data.loc[:, 'time-to-go'] = time
-    return data
-
 
 
 if __name__ == '__main__':
@@ -150,32 +124,11 @@ if __name__ == '__main__':
 
             #  sample_date returns None if data isn't correct length
             if ds is not None:
-
-                # last minute masking of prices that are in the next day
-                prices = ds.loc[:, 'price [$/MWh]'].to_frame()
-                mask = create_horizons(prices, horizons=horizons, col='price [$/MWh]')
-                mask = mask.isnull()
-                mask.loc[:, 'price [$/MWh]'] = False
-
-                ds.values[mask] = mask_val  # TODO could fill this is sensibly....
                 assert ds.isnull().sum().sum() == 0
 
                 path = Path.cwd() / 'dataset' / f'{name}-episodes'
                 path.mkdir(exist_ok=True, parents=True)
                 ds = make_time_features(ds)
-
-                def make_price_features(data):
-
-                    data['medium-price'] = 0
-                    mask = data['price [$/MWh]'] > 300
-                    data.loc[mask, 'medium-price'] = 1
-
-                    data['high-price'] = 0
-                    mask = data['price [$/MWh]'] > 800
-                    data.loc[mask, 'high-price'] = 1
-
-                    return data
-
                 ds = make_price_features(ds)
 
                 day = day.strftime('%Y-%m-%d')

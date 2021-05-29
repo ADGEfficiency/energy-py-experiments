@@ -9,9 +9,8 @@ def compare():
 
     ds = []
     for p in days:
-        p = p / 'results.json'
-        data = json.loads(p.read_text())
-
+        rl = json.loads((p / 'rl.json').read_text())
+        linear = json.loads((p / 'linear.json').read_text())
         data['date'] = p.parent.name
         ds.append(data)
 
@@ -22,6 +21,3 @@ def compare():
 
     print(sums['rl-reward'] / sums['linear-reward'])
     return ds
-
-if __name__ == '__main__':
-    compare()
