@@ -96,6 +96,7 @@ def quantile_transform(data, enc, stage='test', debug=False):
     inspect(data)
     return data, enc
 
+
 def log_transform(data, enc, stage='train', debug=False):
 
     if stage == 'train':
@@ -124,6 +125,7 @@ def sample_date(date, data):
     #  49 because we need that last step for the state, next_state
     if mask.sum() == 49:
         return data.loc[mask, :]
+
 
 def get_mask_val(data):
     return data.loc[:, 'h-1-trading-price'].min() - 0.5
@@ -168,7 +170,6 @@ if __name__ == '__main__':
     datasets = (('train', train), ('test', test))
 
     enc = {}
-
     for name, data in datasets:
         print(f' processing {name}')
 

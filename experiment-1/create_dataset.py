@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import QuantileTransformer, FunctionTransformer, PowerTransformer
 
 
 def cli():
@@ -13,7 +14,7 @@ def cli():
     debug = bool(args.debug)
 
     subset = None
-    horizons = 48
+    horizons = 24
     if debug == True:
         print(' debug mode')
         subset = 2
@@ -69,7 +70,6 @@ def test_create_horizions():
     np.testing.assert_array_equal(features.iloc[0, :], [50, 30, 60])
     np.testing.assert_array_equal(features.iloc[-3, :], [20, 70, 10])
 
-from sklearn.preprocessing import QuantileTransformer, FunctionTransformer, PowerTransformer
 
 
 def transform(
@@ -79,19 +79,57 @@ def transform(
     train=True,
     encoder_params={},
 ):
+    raw = data.copy()
     if train:
         print(f' fit transforming {encoder}')
         enc = encoders[encoder](**encoder_params)
         data = enc.fit_transform(data)
-        encoders[encoder] = enc
-        return data, encoders
 
-    print(f' transforming {encoder}')
-    enc = encoders[encoder]
-    data = enc.transform(data)
+    else:
+        print(f' transforming {encoder}')
+        enc = encoders[encoder]
+        data = enc.transform(data)
+
+    raw.iloc[:, :] = data
     encoders[encoder] = enc
-    return data, encoders
 
+    raw.columns = [c.replace('price', encoder)+'-feature' for c in raw.columns]
+    return raw, encoders
+
+
+def make_days(df):
+    return pd.date_range(start=df.index[0].replace(hour=0, minute=0), end=df.index[-1].replace(hour=0, minute=0), freq='d')
+
+
+def sample_date(date, data):
+    start = date.replace(minute=0)
+    end = date + pd.Timedelta('24h 00:30:00')
+    mask = (data.index >= start) * (data.index < end)
+
+    #  49 because we need that last step for the state, next_state
+    if mask.sum() == 49:
+        return data.loc[mask, :]
+
+
+def make_time_features(data):
+    """done on one episode at a time"""
+    time = [t / data.shape[0] for t in range(data.shape[0])]
+    #  avoid chained assignment error
+    data = data.copy()
+    data.loc[:, 'time-to-go'] = time
+    return data
+
+
+def make_price_features(data):
+    """done on one episode at a time"""
+    data['medium-price'] = 0
+    mask = data['price'] > 300
+    data.loc[mask, 'medium-price'] = 1
+
+    data['high-price'] = 0
+    mask = data['price'] > 800
+    data.loc[mask, 'high-price'] = 1
+    return data
 
 
 if __name__ == '__main__':
@@ -133,3 +171,58 @@ if __name__ == '__main__':
             }
         )
 
+        mask_vals = {
+            'h-0-quantile-feature': quantile.min().min(),
+            'h-0-log-feature': log.min().min(),
+        }
+
+        assert hrzns.shape[0] == log.shape[0] == quantile.shape[0]
+
+        #  used to to masking here (incorrectly)
+        #  should be done each day?
+        #  and for both test & train
+
+        features = pd.concat([quantile, log, price], axis=1)
+
+        next_ep_mask = None
+        days = sorted(make_days(features))
+
+        print(f' start: {days[0]} end: {days[-1]} num: {len(days)}')
+        if debug:
+            end = 3
+        else:
+            end = -1
+
+        for day in days[:end]:
+
+            ds = sample_date(day, features)
+
+            #  sample_date returns None if data isn't correct length
+            if ds is not None:
+                assert ds.isnull().sum().sum() == 0
+
+                if next_ep_mask is None:
+                    print('next ep mask creation')
+                    prices = ds.iloc[:, 0].to_frame()
+                    mask = create_horizons(
+                        prices,
+                        horizons=horizons,
+                        col=prices.columns[0],
+                    )
+                    next_ep_mask = mask.isnull()
+
+                path = Path.cwd() / ds_name / f'{name}'
+                path.mkdir(exist_ok=True, parents=True)
+
+                ds = make_time_features(ds)
+                ds = make_price_features(ds)
+
+                for col_include in ['log', 'quantile']:
+                    cols = [c for c in ds.columns if col_include in c]
+                    subset = ds.loc[:, cols]
+                    mask_val = mask_vals[cols[0]]
+                    subset.values[next_ep_mask] = mask_val
+                    ds.loc[:, cols] = subset
+
+                day = day.strftime('%Y-%m-%d')
+                ds.to_parquet(path / f'{day}.parquet')

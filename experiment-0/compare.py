@@ -21,3 +21,5 @@ def compare():
 
     print(sums['rl-reward'] / sums['linear-reward'])
     return ds
+
+compare()

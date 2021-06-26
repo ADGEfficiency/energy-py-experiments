@@ -1,4 +1,4 @@
-# Experiment 1 - Perfect Foresight
+# Experiment 0 - Perfect Foresight
 
 1. Create dataset of SA trading prices
 - episodes are single day, start at 00:00
@@ -91,4 +91,5 @@ Eight
 
 Nine
 - add log features as well as quantiles
-- add layer to net dense
+- add layer to net dense for qfunc and policy
+- change initial log alpha to 2.0
