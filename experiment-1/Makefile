@@ -11,3 +11,10 @@ linear:
 	git clone https://github.com/ADGEfficiency/energy-py-linear
 	pip3 install energy-py-linear/.
 	python3 linear.py
+
+pretrain:
+	python3 boostrap_experience.py
+
+pipeline:
+	make dataset
+	make linear

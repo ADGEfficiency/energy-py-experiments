@@ -1,44 +1,46 @@
-from pathlib import Path
+from collections import defaultdict
 import json
+from pathlib import Path
 
-for ep in [d for d in (Path.cwd()  / 'linear' / 'train').iterdir() if d.suffix == '.json'][:1]:
-    linear = json.loads(ep.read_text())
-    import pandas as pd
-    data = pd.read_parquet(ep.with_suffix('.parquet'))
-    hyp = json.loads((Path.cwd() / 'train.json').read_text())
+import pandas as pd
 
-    import energypy
-    policy = energypy.make(
-        'fixed-policy',
-        env=None,
-        actions=linear['scaled-action']
-    )
+import energypy
+from energypy import memory, episode
 
-    hyp['env']['dataset'] = {
-        'name': 'nem-dataset',
-        'train_episodes': [ep, ],
-        'test_episodes': [ep, ],
+
+hyp = json.loads((Path.cwd() / "train.json").read_text())
+train_eps = [d for d in (Path.cwd() / "linear" / "train").iterdir() if d.suffix == ".json"]
+buffer = None
+
+for ep in train_eps:
+    print(ep)
+    linear_results = json.loads(ep.read_text())
+    linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
+    rl_episode = pd.read_parquet((Path.cwd() / 'dataset' / 'train' / ep.name).with_suffix('.parquet'))
+
+    hyp["env"]["dataset"] = {
+        "name": "nem-dataset",
+        "train_episodes": [rl_episode,],
+        "test_episodes": [rl_episode,],
+        "price_col": "price"
     }
-    hyp['env']['n_batteries'] = 1
+    hyp["env"]["n_batteries"] = 1
 
-    env = energypy.make(**hyp['env'])
+    env = energypy.make(**hyp["env"])
 
-    from energypy import memory
-    from collections import defaultdict
-    buffer = memory.make(env, {'buffer-size': 1000000})
-    results = episode(
-        env,
-        buffer,
-        policy,
-        hyp,
-        counters=defaultdict(int),
-        mode='train'
-    )
+    if buffer is None:
+        buffer = memory.make(env, {"buffer-size": len(train_eps) * 48})
 
+    policy = energypy.make("fixed-policy", env=env, actions=linear_results["scaled-action"])
 
+    results = episode(env, buffer, policy, hyp, counters=defaultdict(int), mode="train")
 
-    #  save the buffer
+    linear_results['rl_episode_reward'] = float(results)
+    out = Path.cwd() / 'pretrain' / ep.name
+    print(f' write to {out}')
+    out.write_text(json.dumps(linear_results))
+    print(linear_results['rl_episode_reward'], linear_results['cost'])
 
-
-
-
+#  save the buffer
+memory.save(buffer, './linear/buffer.pkl')
+assert buffer.full
