@@ -8,9 +8,9 @@ if __name__ == '__main__':
     cp = cps[0]
 
     def sort_func(cp):
-        return cp['path'].split('/')[-1].split)
+        return int(str(cp['path']).split('/')[-1].split('-')[-1])
 
-    cps = sorted(cps, )
+    cps = sorted(cps, key=sort_func)
 
     from energypy.checkpoint import init_checkpoint
 

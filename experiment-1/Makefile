@@ -22,6 +22,7 @@ req: ./requirements.txt
 	python3 create_dataset.py
 
 ./linear/train/: ./dataset/ ./linear.py
+	rm -rf ./energy-py-linear
 	git clone https://github.com/ADGEfficiency/energy-py-linear
 	pip3 install energy-py-linear/.
 	python3 linear.py
@@ -32,5 +33,5 @@ req: ./requirements.txt
 ./pretrain/run-one/checkpoints/: ./pretrain/buffer.pkl ./pretrain.py
 	python3 pretrain.py
 
-final: ./pretrain/run-one/checkpoints/
+final: ./pretrain/run-one/checkpoints/ ./run_pretrain.py
 	python3 run_pretrain.py
