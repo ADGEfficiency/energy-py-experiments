@@ -17,13 +17,13 @@ def cli():
     horizons = 24
     if debug == True:
         print(' debug mode')
-        subset = 2
+        subset = 32
 
     return debug, subset, horizons, args.name
 
 
 def load_nem_data(subset=None):
-    home = Path.home() / 'nem-data' / 'data' / 'trading-price'
+    home = Path.home() / 'nem-data' / 'trading-price'
     fis = [p / 'clean.csv' for p in home.iterdir()]
     fis = [pd.read_csv(p, index_col=0, parse_dates=True) for p in fis]
 
@@ -54,11 +54,12 @@ def split_train_test(data, split=0.8):
     return train, test
 
 
-def create_horizons(data, horizons=48, col='trading-price'):
+def create_horizons(data, horizons=48, col='trading-price', rename_cols=True):
     print(f' creating {horizons} horizons of {col}')
     features = [data[col].shift(-h) for h in range(horizons)]
     features = pd.concat(features, axis=1)
-    features.columns = [f'h-{n}-{col}' for n in range(features.shape[1])]
+    if rename_cols:
+        features.columns = [f'h-{n}-{col}' for n in range(features.shape[1])]
     return features
 
 
@@ -133,7 +134,7 @@ def make_price_features(data):
 
 
 if __name__ == '__main__':
-    test_create_horizions()
+    # test_create_horizions()
     debug, subset, horizons, ds_name = cli()
     data = load_nem_data(subset=subset)
     train, test = split_train_test(data, split=0.8)
@@ -143,8 +144,8 @@ if __name__ == '__main__':
         'quantile': QuantileTransformer
     }
 
-    for name, data in datasets:
-        print(f' processing {name}, {data.shape}')
+    for data_name, data in datasets:
+        print(f' processing {data_name}, {data.shape}')
 
         price = data['price'].to_frame()
         hrzns = create_horizons(data, horizons=horizons, col='price')
@@ -157,13 +158,13 @@ if __name__ == '__main__':
             hrzns,
             encoders,
             'log',
-            train=name == 'train',
+            train=data_name == 'train',
         )
         quantile, encoders = transform(
             hrzns,
             encoders,
             'quantile',
-            train=name == 'train',
+            train=data_name == 'train',
             encoder_params={
                 'n_quantiles': hrzns.shape[0],
                 'subsample': hrzns.shape[0],
@@ -178,9 +179,8 @@ if __name__ == '__main__':
 
         assert hrzns.shape[0] == log.shape[0] == quantile.shape[0]
 
-        #  used to to masking here (incorrectly)
-        #  should be done each day?
-        #  and for both test & train
+        for d in [hrzns, log, quantile]:
+            assert d.isnull().sum().sum() == 0
 
         features = pd.concat([quantile, log, price], axis=1)
 
@@ -198,8 +198,10 @@ if __name__ == '__main__':
             ds = sample_date(day, features)
 
             #  sample_date returns None if data isn't correct length
-            if ds is not None:
-                assert ds.isnull().sum().sum() == 0
+            if ds is None or ds.isnull().sum().sum() != 0:
+                pass
+            else:
+                raw = ds.copy()
 
                 if next_ep_mask is None:
                     print('next ep mask creation')
@@ -208,10 +210,11 @@ if __name__ == '__main__':
                         prices,
                         horizons=horizons,
                         col=prices.columns[0],
+                        rename_cols=True
                     )
                     next_ep_mask = mask.isnull()
 
-                path = Path.cwd() / ds_name / f'{name}'
+                path = Path.cwd() / ds_name / data_name
                 path.mkdir(exist_ok=True, parents=True)
 
                 ds = make_time_features(ds)
@@ -224,5 +227,9 @@ if __name__ == '__main__':
                     subset.values[next_ep_mask] = mask_val
                     ds.loc[:, cols] = subset
 
+                if ds.isnull().sum().sum() != 0:
+                    assert 1 == 0
                 day = day.strftime('%Y-%m-%d')
-                ds.to_parquet(path / f'{day}.parquet')
+                p = path / f'{day}.parquet'
+                print(f' saving to {p}')
+                ds.to_parquet(p)

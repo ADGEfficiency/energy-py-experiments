@@ -38,9 +38,10 @@ for ep in train_eps:
     linear_results['rl_episode_reward'] = float(results)
     out = Path.cwd() / 'pretrain' / ep.name
     print(f' write to {out}')
+    out.parent.mkdir(exist_ok=True, parents=True)
     out.write_text(json.dumps(linear_results))
     print(linear_results['rl_episode_reward'], linear_results['cost'])
 
 #  save the buffer
-memory.save(buffer, './linear/buffer.pkl')
+memory.save(buffer, './pretrain/buffer.pkl')
 assert buffer.full

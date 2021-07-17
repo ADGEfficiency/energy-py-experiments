@@ -2,9 +2,13 @@
 
 ## Methods
 
+```bash
+$ make setup
+```
+
 ### 1. Create a dataset of SA trading prices
 
-```python
+```bash
 $ make dataset
 ```
 

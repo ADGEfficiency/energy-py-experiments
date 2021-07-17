@@ -1,20 +1,36 @@
-setup:
-	pip3 install -r requirements.txt
-	git clone https://github.com/ADGEfficiency/nem-data
-	pip3 install nem-data/.
-	nem -s 2014-01 -e 2020-12 -r trading-price
+experiment: final
 
-dataset:
+req: ./requirements.txt
+	pip3 install -q -r requirements.txt
+
+./nem-data/README.md: ./requirements.txt
+	rm -rf ./nem-data
+	git clone git@github.com:ADGEfficiency/nem-data
+	pip3 install nem-data/.
+	pip3 install -q -r nem-data/requirements.txt
+
+./energy-py/:
+	rm -rf ./energy-py
+	git clone git@github.com:ADGEfficiency/energy-py
+	pip3 install -e energy-py/.
+	pip3 install -q -r energy-py/requirements.txt
+
+~/nem-data/trading-price/: ./nem-data/README.md
+	nem -s 2015-01 -e 2020-12 -r trading-price
+
+./dataset/: ~/nem-data/trading-price/ ./create_dataset.py
 	python3 create_dataset.py
 
-linear:
+./linear/train/: ./dataset/ ./linear.py
 	git clone https://github.com/ADGEfficiency/energy-py-linear
 	pip3 install energy-py-linear/.
 	python3 linear.py
 
-pretrain:
-	python3 boostrap_experience.py
+./pretrain/buffer.pkl: ./energy-py/ ./linear/train/ ./bootstrap_experience.py
+	python3 bootstrap_experience.py
 
-pipeline:
-	make dataset
-	make linear
+./pretrain/run-one/checkpoints/: ./pretrain/buffer.pkl ./pretrain.py
+	python3 pretrain.py
+
+final: ./pretrain/run-one/checkpoints/
+	python3 run_pretrain.py
