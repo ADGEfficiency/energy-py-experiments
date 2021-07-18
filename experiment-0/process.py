@@ -57,10 +57,6 @@ cp = checkpoint.load_checkpoint(cp)
 actor = cp['nets']['actor']
 hyp = cp['hyp']
 
-#  parallel stuff first
-
-#  somethings need to be done in sequence
-
 from collections import defaultdict
 
 results = defaultdict(list)
