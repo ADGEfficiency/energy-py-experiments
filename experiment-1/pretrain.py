@@ -2,14 +2,12 @@ from collections import defaultdict
 from energypy import memory, train, json_util, init, utils, make
 from energypy import checkpoint
 from pathlib import Path
-hyp = json_util.load('./train.json')
 
-hyp["env"]["dataset"] = {
-    "name": "nem-dataset",
-    "train_episodes": [p for p in Path('./dataset/train').iterdir()],
-    "test_episodes": [p for p in Path('./dataset/test').iterdir()],
-    "price_col": "price"
-}
+from cli import cli
+
+dataset_name, debug = cli()
+
+hyp = json_util.load('./train.json')
 hyp["env"]["n_batteries"] = 1
 
 env = make(**hyp['env'])

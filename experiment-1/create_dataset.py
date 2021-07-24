@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import QuantileTransformer, FunctionTransformer, PowerTransformer
+from sklearn.preprocessing import QuantileTransformer, FunctionTransformer, RobustScaler, PowerTransformer
 
 
 def cli():
@@ -137,9 +137,11 @@ def create_dataset_dense():
     data = load_nem_data(subset=subset)
     train, test = split_train_test(data, split=0.8)
     datasets = (('train', train), ('test', test))
+
     encoders = {
         'log': PowerTransformer,
-        'quantile': QuantileTransformer
+        'quantile': QuantileTransformer,
+        'robust': RobustScaler
     }
 
     for data_name, data in datasets:
@@ -242,5 +244,3 @@ if __name__ == '__main__':
     }
 
     func = funcs[func]
-
-

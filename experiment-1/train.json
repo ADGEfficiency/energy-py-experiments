@@ -17,7 +17,12 @@
         "initial_charge": 0.0,
         "episode_length": 48,
         "n_batteries": 16,
-        "dataset": {"name": "nem-dataset", "train_episodes": "dataset/train", "test_episodes": "dataset/test/"}
+        "dataset": {
+          "name": "nem-dataset",
+          "train_episodes": "./attention-dataset/train/features/",
+          "test_episodes": "./attention-dataset/test/features/",
+          "price_col": "price"
+        }
     },
     "network": {
       "name": "attention",

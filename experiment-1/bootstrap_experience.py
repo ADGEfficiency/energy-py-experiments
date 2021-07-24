@@ -7,16 +7,19 @@ import pandas as pd
 import energypy
 from energypy import memory, episode
 
+from cli import cli
+
+dataset_name, debug = cli()
 
 hyp = json.loads((Path.cwd() / "train.json").read_text())
-train_eps = [d for d in (Path.cwd() / "linear" / "train").iterdir() if d.suffix == ".json"]
+train_eps = [d for d in (Path.cwd() / dataset_name / "train" / "linear").iterdir() if d.suffix == ".json"]
 buffer = None
 
 for ep in train_eps:
     print(ep)
     linear_results = json.loads(ep.read_text())
     linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
-    rl_episode = pd.read_parquet((Path.cwd() / 'dataset' / 'train' / ep.name).with_suffix('.parquet'))
+    rl_episode = pd.read_parquet((Path.cwd() / dataset_name / 'train' / 'features' / ep.name).with_suffix('.parquet'))
 
     hyp["env"]["dataset"] = {
         "name": "nem-dataset",
