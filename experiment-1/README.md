@@ -1,5 +1,8 @@
 # Experiment 1 - Pretraining on perfect rollouts
 
+todo
+- new network structures
+
 ## Methods
 
 ```bash

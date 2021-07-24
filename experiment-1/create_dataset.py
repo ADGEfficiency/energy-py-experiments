@@ -133,9 +133,7 @@ def make_price_features(data):
     return data
 
 
-if __name__ == '__main__':
-    # test_create_horizions()
-    debug, subset, horizons, ds_name = cli()
+def create_dataset_dense():
     data = load_nem_data(subset=subset)
     train, test = split_train_test(data, split=0.8)
     datasets = (('train', train), ('test', test))
@@ -233,3 +231,16 @@ if __name__ == '__main__':
                 p = path / f'{day}.parquet'
                 print(f' saving to {p}')
                 ds.to_parquet(p)
+
+
+if __name__ == '__main__':
+    debug, subset, horizons, ds_name, func = cli()
+
+    funcs = {
+        'dense': create_dataset_dense,
+        'attention': create_dataset_attention,
+    }
+
+    func = funcs[func]
+
+

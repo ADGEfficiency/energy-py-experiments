@@ -11,7 +11,6 @@
     "n-episodes": 20000,
     "test-every": 128,
     "n-tests": "all",
-    "size-scale": 8,
     "buffer": "./experiments/battery/random.pkl",
     "env": {
         "name": "battery",
@@ -19,6 +18,10 @@
         "episode_length": 48,
         "n_batteries": 16,
         "dataset": {"name": "nem-dataset", "train_episodes": "dataset/train", "test_episodes": "dataset/test/"}
+    },
+    "network": {
+      "name": "attention",
+      "size_scale": 8
     },
     "seed": 42
 }
