@@ -27,7 +27,7 @@ print(f' buffer len {len(buffer)}')
 #  train on buffer
 epoch_len = int(len(buffer) / hyp['batch-size'])
 global_step = 0
-for epoch in range(50):
+for epoch in range(80):
     for step in range(epoch_len):
         print(f' epoch: {epoch}, step: {step} of {epoch_len}')
         #  randomly sample each time

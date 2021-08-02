@@ -19,13 +19,13 @@
         "n_batteries": 16,
         "dataset": {
           "name": "nem-dataset",
-          "train_episodes": "./attention-dataset/train/features/",
-          "test_episodes": "./attention-dataset/test/features/",
+          "train_episodes": "./dataset/train/",
+          "test_episodes": "./dataset/test/",
           "price_col": "price"
         }
     },
     "network": {
-      "name": "attention",
+      "name": "dense",
       "size_scale": 8
     },
     "seed": 42

@@ -1,3 +1,5 @@
+.PHONY: ~/nem-data/trading-price/
+
 experiment: final
 
 req: ./requirements.txt
@@ -18,7 +20,7 @@ req: ./requirements.txt
 ~/nem-data/trading-price/: ./nem-data/README.md
 	nem -s 2015-01 -e 2020-12 -r trading-price
 
-./dataset/: ~/nem-data/trading-price/ ./create_dataset.py
+./dataset/: ./create_dataset.py
 	python3 create_dataset.py
 
 ./linear/train/: ./dataset/ ./linear.py

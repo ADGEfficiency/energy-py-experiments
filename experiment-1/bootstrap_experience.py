@@ -19,7 +19,7 @@ for ep in train_eps:
     print(ep)
     linear_results = json.loads(ep.read_text())
     linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
-    rl_episode = pd.read_parquet((Path.cwd() / dataset_name / 'train' / 'features' / ep.name).with_suffix('.parquet'))
+    rl_episode = pd.read_parquet((Path.cwd() / dataset_name / 'train' / ep.name).with_suffix('.parquet'))
 
     hyp["env"]["dataset"] = {
         "name": "nem-dataset",
@@ -43,7 +43,7 @@ for ep in train_eps:
     print(f' write to {out}')
     out.parent.mkdir(exist_ok=True, parents=True)
     out.write_text(json.dumps(linear_results))
-    print(linear_results['rl_episode_reward'], linear_results['cost'])
+    print(linear_results['rl_episode_reward'], linear_results['cost'], linear_results['rl_episode_reward'] + linear_results['cost'])
 
 #  save the buffer
 memory.save(buffer, './pretrain/buffer.pkl')

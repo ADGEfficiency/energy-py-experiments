@@ -19,7 +19,7 @@ def cli():
         print(' debug mode')
         subset = 32
 
-    return debug, subset, horizons, args.name
+    return debug, subset, horizons, args.name, 'dense'
 
 
 def load_nem_data(subset=None):
@@ -133,7 +133,7 @@ def make_price_features(data):
     return data
 
 
-def create_dataset_dense():
+def create_dataset_dense(subset):
     data = load_nem_data(subset=subset)
     train, test = split_train_test(data, split=0.8)
     datasets = (('train', train), ('test', test))
@@ -240,7 +240,8 @@ if __name__ == '__main__':
 
     funcs = {
         'dense': create_dataset_dense,
-        'attention': create_dataset_attention,
+        # 'attention': create_dataset_attention,
     }
 
-    func = funcs[func]
+    funcs[func](subset)
+
