@@ -93,4 +93,14 @@ if __name__ == '__main__':
         results['rl_cost'].append(-float(rewards))
         results['date'].append(str(ep).split('/')[-1].split('.')[0])
 
-    pd.DataFrame(results).to_csv(path.parent / 'results.csv', index=False)
+    results = pd.DataFrame(results)
+    results['optimal-pct'] = results['rl_cost'] / results['linear_cost']
+    results.to_csv(path.parent / 'results.csv', index=False)
+
+    agg = pd.DataFrame(results).agg({
+        'linear_cost': 'sum',
+        'rl_cost': 'sum',
+        'optimal-pct': 'mean',
+    })
+    agg.to_frame().to_csv(path.parent / 'agg.csv', index=False)
+

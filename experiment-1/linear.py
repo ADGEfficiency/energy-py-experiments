@@ -5,11 +5,25 @@ import json
 
 from cli import cli
 
+# import argparse
+# def cli():
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--debug', default=0, nargs='?')
+#     parser.add_argument('--name', default='dataset', nargs='?')
+#     args = parser.parse_args()
+#     debug = bool(args.debug)
+#     return args.name, debug
+
 
 def scale_actions(actions, power):
     return (actions / power).tolist()
 
-if __name__ == '__main__':
+import click
+
+@click.command()
+@click.argument('dataset')
+@click.option('--debug', default=False)
+def main(dataset, debug):
     dataset_name, debug = cli()
     battery = epl.Battery(power=2, capacity=4, efficiency=0.9)
     for stage in ['train', 'test']:

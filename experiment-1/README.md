@@ -1,3 +1,5 @@
+
+want features that encode the ranks across one day + absolute values
 # Experiment 1 - Pretraining on perfect rollouts
 
 todo

@@ -7,19 +7,38 @@ import pandas as pd
 import energypy
 from energypy import memory, episode
 
-from cli import cli
+# dataset_name, debug = cli()
+import click
 
-dataset_name, debug = cli()
+@click.command()
+@click.argument('dataset', type=click.Path(exists=True))
+@click.argument('hyp', type=click.Path(exists=True))
+def cli(dataset, hyp):
+    return {
+        'hyp': hyp,
+        'dataset': dataset
+    }
 
-hyp = json.loads((Path.cwd() / "train.json").read_text())
-train_eps = [d for d in (Path.cwd() / dataset_name / "train" / "linear").iterdir() if d.suffix == ".json"]
+args = cli()
+hyp = json.loads(Path(args['hyp']).read_text())
+train_eps = [d for d in (args['dataset'] / "train" / "linear").iterdir() if d.suffix == ".json"]
+
 buffer = None
-
 for ep in train_eps:
     print(ep)
     linear_results = json.loads(ep.read_text())
     linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
-    rl_episode = pd.read_parquet((Path.cwd() / dataset_name / 'train' / ep.name).with_suffix('.parquet'))
+
+    def load_rl_episode(dataset):
+        #  dataset = ./attention-dataset/train/2020-01-01
+        dims = [p for p in dataset.iterdir() if p.suffix == '.npy']
+
+        #  {prices: np.array, features: np.array, mask: np.array}
+        return {p.name: np.load(p) for p in dims}
+
+    # rl_episode = pd.read_parquet(dataset / 'train' / ep.name).with_suffix('.parquet')
+    #  here, we need to load features, mask, prices
+    rl_episode = load_rl_episode(dataset / 'train' / ep.name)
 
     hyp["env"]["dataset"] = {
         "name": "nem-dataset",

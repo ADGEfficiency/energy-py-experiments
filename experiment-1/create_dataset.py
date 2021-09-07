@@ -214,7 +214,7 @@ def create_dataset_dense(subset):
                     )
                     next_ep_mask = mask.isnull()
 
-                path = Path.cwd() / ds_name / data_name
+                path = Path.cwd() / ds_name / data_name / 'features'
                 path.mkdir(exist_ok=True, parents=True)
 
                 ds = make_time_features(ds)
@@ -235,13 +235,71 @@ def create_dataset_dense(subset):
                 ds.to_parquet(p)
 
 
-if __name__ == '__main__':
-    debug, subset, horizons, ds_name, func = cli()
+def create_dataset_attention():
+    horizons = 48
 
-    funcs = {
-        'dense': create_dataset_dense,
-        # 'attention': create_dataset_attention,
+    data = load_nem_data(subset=20).drop('REGIONID', axis=1)
+    train, test = split_train_test(data, split=0.8)
+    datasets = (('train', train), ('test', test))
+
+    encoders = {
+        'log': PowerTransformer,
+        'quantile': QuantileTransformer,
+        'robust': RobustScaler
     }
 
-    funcs[func](subset)
+    for data_name, data in datasets:
+        print(f' processing {data_name}, {data.shape}')
 
+        hrzns = create_horizons(data, horizons=horizons, col='price')
+        hrzns = hrzns.dropna(axis=0)
+
+        #  now add transforms
+        robust, encoders = transform(
+            hrzns,
+            encoders,
+            'robust',
+            train=data_name == 'train',
+        )
+        features = pd.concat([data, robust], axis=1)
+
+        days = sorted(make_days(features))
+        print(f' start: {days[0]} end: {days[-1]} num: {len(days)}')
+
+        for day in days:
+            if (ds := sample_date(day, features)) is not None:
+
+                print(day)
+                prices = ds.loc[:, 'price'].to_frame()
+                feat = ds.drop('price', axis=1)
+                mask = (~create_horizons(prices, horizons, 'price').isnull()).astype(int)
+
+                path = Path.cwd() / 'attention-dataset' / data_name
+                path.mkdir(exist_ok=True, parents=True)
+                day = day.strftime('%Y-%m-%d')
+
+                seq_len = feat.shape[1]
+                feat = feat.values.reshape(-1, seq_len, 1)
+                mask = np.repeat(mask.values, seq_len, axis=1).reshape(-1, seq_len, seq_len)
+                prices = prices.values.reshape(-1, 1)
+
+                p = path / day / 'features.npy'
+                p.parent.mkdir(exist_ok=True)
+                np.save(p, feat)
+                print(f' saved to {p}')
+
+                p = path / day / 'mask.npy'
+                p.parent.mkdir(exist_ok=True)
+                np.save(p, mask)
+                print(f' saved to {p}')
+
+                p = path / day / 'prices.npy'
+                p.parent.mkdir(exist_ok=True)
+                np.save(p, prices)
+                print(f' saved to {p}')
+
+
+if __name__ == '__main__':
+    debug, subset, horizons, ds_name, func = cli()
+    funcs = {'dense': create_dataset_dense, 'attention': create_dataset_attention}
+    funcs[func](subset)
