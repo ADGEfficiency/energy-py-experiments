@@ -1,7 +1,21 @@
-## Experiment 1 - Perfect Foresight
+# energypy experiments - the finale
 
-## Experiment 2 - Lag Prices Only
 
-## Experiment 3 - Pretraining
+Dependencies
 
-## Experiment 4 - More features
+- [energypy](https://github.com/ADGEfficiency/energy-py)
+- energypy-linear,
+- nem-data.
+
+## Running the experiment
+
+All done through the top level `Makefile`.
+
+
+## Methods
+
+- perfect foresight
+- lag prices only
+- how useful is pretraining?
+- how useful is attention?
+- more time series features
