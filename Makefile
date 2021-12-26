@@ -1,4 +1,4 @@
-.PHONY: install ml-datasets
+.PHONY: install
 
 all: linear
 
@@ -34,18 +34,15 @@ $(SITE_PACKAGES): requirements.txt
 #  third party / input datasets
 external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
 
-#  create ML datasets from our price data - one for a dense net, the other for attention
-# ./data/dense/test/features/2020-12-30.parquet: python-setup external-datasets
-# 	python3 create_datasets.py dense
-
+#  create ML datasets from our price data
 ./data/attention/test/features/2020-12-30.npy:
-	python3 create_datasets2.py attention
+	python3 create_datasets.py attention
 
-ml-datasets: ./data/attention/test/features/2020-12-30.npy
-
-#  run the linear program over our attention net data
-
-linear: ml-datasets
+#  run the linear program over our data
+./data/linear/test/2020-12-30.json: ./data/attention/test/features/2020-12-30.npy
 	python3 linear.py attention
 
-./data/linear/
+linear: ./data/linear/test/2020-12-30.json
+
+./pretrain/buffer.pkl: ./energy-py/ ./linear/train/ ./bootstrap_experience.py
+	python3 bootstrap_experience.py attention-dataset attention.json
