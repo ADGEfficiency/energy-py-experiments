@@ -1,6 +1,6 @@
-.PHONY: install
+.PHONY: install ml-datasets
 
-all: external-datasets ml-datasets linear
+all: linear
 
 SITE_PACKAGES := $(shell pip show pip | grep '^Location' | cut -f2 -d':')
 python-setup: $(SITE_PACKAGES)
@@ -11,6 +11,7 @@ $(SITE_PACKAGES): requirements.txt
 ./energy-py/README.md:
 	rm -rf ./energy-py
 	git clone git@github.com:ADGEfficiency/energy-py
+	cd energy-py; git checkout dev
 	pip3 install -e energy-py/.
 	pip3 install -q -r energy-py/requirements.txt
 
@@ -34,20 +35,17 @@ $(SITE_PACKAGES): requirements.txt
 external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
 
 #  create ML datasets from our price data - one for a dense net, the other for attention
-./data/dense/test/features/2020-12-30.parquet: python-setup external-datasets
-	python3 create_datasets.py dense
+# ./data/dense/test/features/2020-12-30.parquet: python-setup external-datasets
+# 	python3 create_datasets.py dense
 
-./data/attention/test/features/2020-12-30.parquet: python-setup external-datasets
-	python3 create_datasets.py attention
+./data/attention/test/features/2020-12-30.npy:
+	python3 create_datasets2.py attention
 
-ml-datasets: ./data/dense/test/features/2020-12-30.parquet ./data/attention/test/features/2020-12-30.parquet
+ml-datasets: ./data/attention/test/features/2020-12-30.npy
 
 #  run the linear program over our attention net data
-./data/attention/test/linear/2020-12-30.parquet: external-datasets ./data/attention/test/features/2020-12-30.parquet
+
+linear: ml-datasets
 	python3 linear.py attention
 
-linear: ./data/attention/test/linear/2020-12-30.parquet
-
-# #  DONE UP TIL HERE
-# ./pretrain/buffer.pkl: linear ./bootstrap_experience.py
-# 	python3 bootstrap_experience.py attention attention.json
+./data/linear/

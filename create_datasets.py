@@ -80,8 +80,8 @@ def transform(
 
 def make_days(df):
     return pd.date_range(
-        start=df.index[0].replace(hour=0, minute=0),
-        end=df.index[-1].replace(hour=0, minute=0),
+        start=df.index.min().replace(hour=0, minute=0),
+        end=df.index.max().replace(hour=0, minute=0),
         freq="d",
     )
 
@@ -183,7 +183,8 @@ def create_dataset_dense(subset, horizons, debug):
 
             #  sample_date returns None if data isn't correct length
             if ds is None or ds.isnull().sum().sum() != 0:
-                pass
+                print(f"{day} not correct len")
+                breakpoint()
 
             else:
                 raw = ds.copy()
@@ -199,9 +200,6 @@ def create_dataset_dense(subset, horizons, debug):
                     )
                     next_ep_mask = mask.isnull()
 
-                path = Path.cwd() / "data" / "dense" / data_name / "features"
-                path.mkdir(exist_ok=True, parents=True)
-
                 ds = make_time_features(ds)
                 ds = make_price_features(ds)
 
@@ -214,16 +212,22 @@ def create_dataset_dense(subset, horizons, debug):
 
                 assert ds.isnull().sum().sum() == 0
 
-                day = day.strftime("%Y-%m-%d")
-                p = path / f"{day}.parquet"
-                print(f" saving to {p}")
-                ds.to_parquet(p)
+                path = Path.cwd() / "data" / "dense" / data_name / "features"
+                path.mkdir(exist_ok=True, parents=True)
 
-                breakpoint()
+                prices = ds.loc[:, "price"].to_frame()
+                features = ds.drop("price", axis=1)
+
                 day = day.strftime("%Y-%m-%d")
                 p = path / f"{day}.parquet"
                 print(f" saving to {p}")
-                ds.to_parquet(p)
+                features.to_parquet(p)
+
+                path = Path.cwd() / "data" / "dense" / data_name / "prices"
+                path.mkdir(exist_ok=True, parents=True)
+                p = path / f"{day}.parquet"
+                print(f" saving to {p}")
+                prices.to_parquet(p)
 
 
 def create_dataset_attention(subset, horizons, debug):
