@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import click
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import (
@@ -116,7 +117,7 @@ def make_price_features(data):
     return data
 
 
-def create_dataset_dense(subset):
+def create_dataset_dense(subset, horizons, debug):
     data = load_nem_data(subset=subset)
     train, test = split_train_test(data, split=0.8)
     datasets = (("train", train), ("test", test))
@@ -198,7 +199,7 @@ def create_dataset_dense(subset):
                     )
                     next_ep_mask = mask.isnull()
 
-                path = Path.cwd() / "data" / ds_name / data_name / "features"
+                path = Path.cwd() / "data" / "dense" / data_name / "features"
                 path.mkdir(exist_ok=True, parents=True)
 
                 ds = make_time_features(ds)
@@ -211,18 +212,23 @@ def create_dataset_dense(subset):
                     subset.values[next_ep_mask] = mask_val
                     ds.loc[:, cols] = subset
 
-                if ds.isnull().sum().sum() != 0:
-                    assert 1 == 0
+                assert ds.isnull().sum().sum() == 0
+
+                day = day.strftime("%Y-%m-%d")
+                p = path / f"{day}.parquet"
+                print(f" saving to {p}")
+                ds.to_parquet(p)
+
+                breakpoint()
                 day = day.strftime("%Y-%m-%d")
                 p = path / f"{day}.parquet"
                 print(f" saving to {p}")
                 ds.to_parquet(p)
 
 
-def create_dataset_attention():
-    horizons = 48
+def create_dataset_attention(subset, horizons, debug):
 
-    data = load_nem_data(subset=20).drop("REGIONID", axis=1)
+    data = load_nem_data(subset=subset).drop("REGIONID", axis=1)
     train, test = split_train_test(data, split=0.8)
     datasets = (("train", train), ("test", test))
 
@@ -232,8 +238,8 @@ def create_dataset_attention():
         "robust": RobustScaler,
     }
 
-    for data_name, data in datasets:
-        print(f" processing {data_name}, {data.shape}")
+    for stage, data in datasets:
+        print(f" processing {stage}, {data.shape}")
 
         hrzns = create_horizons(data, horizons=horizons, col="price")
         hrzns = hrzns.dropna(axis=0)
@@ -243,7 +249,7 @@ def create_dataset_attention():
             hrzns,
             encoders,
             "robust",
-            train=data_name == "train",
+            train=stage == "train",
         )
         features = pd.concat([data, robust], axis=1)
 
@@ -260,7 +266,7 @@ def create_dataset_attention():
                     int
                 )
 
-                path = Path.cwd() / "data" / "attention-dataset" / data_name
+                path = Path.cwd() / "data" / "attention" / stage
                 path.mkdir(exist_ok=True, parents=True)
                 day = day.strftime("%Y-%m-%d")
 
@@ -271,39 +277,31 @@ def create_dataset_attention():
                 )
                 prices = prices.values.reshape(-1, 1)
 
-                p = path / day / "features.npy"
-                p.parent.mkdir(exist_ok=True)
-                np.save(p, feat)
-                print(f" saved to {p}")
-
-                p = path / day / "mask.npy"
-                p.parent.mkdir(exist_ok=True)
-                np.save(p, mask)
-                print(f" saved to {p}")
-
-                p = path / day / "prices.npy"
-                p.parent.mkdir(exist_ok=True)
-                np.save(p, prices)
-                print(f" saved to {p}")
+                for name, data in [
+                    ("features", feat),
+                    ("mask", mask),
+                    ("prices", prices),
+                ]:
+                    p = path / name / f"{day}.npy"
+                    p.parent.mkdir(exist_ok=True)
+                    np.save(p, feat)
+                    print(f" saved to {p}")
 
 
-def cli():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", default=0, nargs="?")
-    parser.add_argument("--name", default="dataset", nargs="?")
-    args = parser.parse_args()
-    debug = bool(args.debug)
-
+@click.command()
+@click.argument("dataset")
+@click.option("--debug", default=False)
+@click.option("--horizons", default=48)
+def cli(dataset, debug, horizons):
     subset = None
-    horizons = 24
-    if debug == True:
+
+    if bool(debug) == True:
         print(" debug mode")
         subset = 32
 
-    return debug, subset, horizons, args.name, "dense"
+    funcs = {"dense": create_dataset_dense, "attention": create_dataset_attention}
+    funcs[dataset](subset, horizons=horizons, debug=debug)
 
 
 if __name__ == "__main__":
-    debug, subset, horizons, ds_name, func = cli()
-    funcs = {"dense": create_dataset_dense, "attention": create_dataset_attention}
-    funcs[func](subset)
+    cli()
