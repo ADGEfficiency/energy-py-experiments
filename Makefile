@@ -1,6 +1,6 @@
 .PHONY: install
 
-all: linear
+all: ./data/pretrain/buffer.pkl
 
 SITE_PACKAGES := $(shell pip show pip | grep '^Location' | cut -f2 -d':')
 python-setup: $(SITE_PACKAGES)
@@ -35,14 +35,12 @@ $(SITE_PACKAGES): requirements.txt
 external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
 
 #  create ML datasets from our price data
-./data/attention/test/features/2020-12-30.npy:
+./data/attention/test/features/2020-12-30.npy: ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
 	python3 create_datasets.py attention
 
 #  run the linear program over our data
 ./data/linear/test/2020-12-30.json: ./data/attention/test/features/2020-12-30.npy
 	python3 linear.py attention
 
-linear: ./data/linear/test/2020-12-30.json
-
-./pretrain/buffer.pkl: ./energy-py/ ./linear/train/ ./bootstrap_experience.py
-	python3 bootstrap_experience.py attention-dataset attention.json
+./data/pretrain/buffer.pkl: ./data/linear/test/2020-12-30.json
+	python3 bootstrap_experience.py ./attention.json
