@@ -18,8 +18,8 @@
         "n_batteries": 16,
         "dataset": {
           "name": "nem-dataset-attention",
-          "train_episodes": "./attention-dataset/train/",
-          "test_episodes": "./attention-dataset/test/",
+          "train_episodes": "./data/attention/train/",
+          "test_episodes": "./data/attention/test/",
           "price_col": "price"
         }
     },

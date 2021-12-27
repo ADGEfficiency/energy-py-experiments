@@ -42,5 +42,15 @@ external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data
 ./data/linear/test/2020-12-30.json: ./data/attention/test/features/2020-12-30.npy
 	python3 linear.py attention
 
+#  fill our buffer with experience that mimics our linear program
 ./data/pretrain/buffer.pkl: ./data/linear/test/2020-12-30.json
 	python3 bootstrap_experience.py ./attention.json
+
+#  pretrain our network
+./pretrain/run-one/checkpoints/: ./data/pretrain/buffer.pkl
+	python3 pretrain.py ./attention.json
+
+pretrain: ./pretrain/run-one/checkpoints/
+
+final: ./pretrain/run-one/checkpoints/ ./run_pretrain.py
+	python3 run_pretrain.py
