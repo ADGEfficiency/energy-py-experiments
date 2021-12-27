@@ -1,6 +1,6 @@
 .PHONY: install
 
-all: ./data/pretrain/buffer.pkl
+all: final
 
 SITE_PACKAGES := $(shell pip show pip | grep '^Location' | cut -f2 -d':')
 python-setup: $(SITE_PACKAGES)
@@ -49,8 +49,6 @@ external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data
 #  pretrain our network
 ./pretrain/run-one/checkpoints/: ./data/pretrain/buffer.pkl
 	python3 pretrain.py ./attention.json
-
-pretrain: ./pretrain/run-one/checkpoints/
 
 final: ./pretrain/run-one/checkpoints/ ./run_pretrain.py
 	python3 run_pretrain.py
