@@ -12,20 +12,27 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def load_rl_episode(day):
+def load_rl_episode(day, dataset):
     """load features, mask, prices"""
     # #  {prices: np.array, features: np.array, mask: np.array}
     ep = {}
     for el in ['prices', 'features', 'mask']:
-        ep[el] = np.load(
-            Path.cwd() / 'data' / 'attention' / 'train' / el / f"{day}.npy"
-        )
+        try:
+            ep[el] = np.load(
+                Path.cwd() / 'data' / dataset / 'train' / el / f"{day}.npy"
+            )
+        except FileNotFoundError:
+            assert el == 'mask'
+            ep[el] = np.ones_like(ep['features'])
+
+            pass
     return ep
 
 
 @click.command()
+@click.argument('dataset')
 @click.argument('hyp', type=click.Path(exists=True))
-def cli(hyp):
+def cli(dataset, hyp):
 
     hyp = json.loads(Path(hyp).read_text())
     train_eps = [d for d in (Path.cwd() / 'data' / "linear" / "train").iterdir() if d.suffix == ".json"]
@@ -39,10 +46,10 @@ def cli(hyp):
         linear_results = json.loads(ep.read_text())
         linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
 
-        rl_episode = load_rl_episode(ep.stem)
+        rl_episode = load_rl_episode(ep.stem, dataset)
 
         hyp["env"]["dataset"] = {
-            "name": "nem-dataset-attention",
+            "name": f"nem-dataset-{dataset}",
             "train_episodes": [rl_episode,],
             "test_episodes": [rl_episode,],
             "price_col": "price"

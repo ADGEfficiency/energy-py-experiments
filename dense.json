@@ -10,21 +10,21 @@
     "n-episodes": 20000,
     "test-every": 128,
     "n-tests": "all",
-    "buffer": "./experiments/battery/random.pkl",
+    "buffer": "./experiments/battery/random-dense.pkl",
     "env": {
         "name": "battery",
         "initial_charge": 0.0,
         "episode_length": 48,
         "n_batteries": 16,
         "dataset": {
-          "name": "nem-dataset",
-          "train_episodes": "./data/attention/train/",
-          "test_episodes": "./data/attention/test/",
-          "price_col": "price"
+          "name": "nem-dataset-dense",
+          "train_episodes": "./data/dense/train/",
+          "test_episodes": "./data/dense/test/",
+          "price_col": "prices"
         }
     },
     "network": {
-      "name": "attention",
+      "name": "dense",
       "size_scale": 8
     },
     "seed": 42

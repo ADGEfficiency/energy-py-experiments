@@ -1,6 +1,6 @@
 .PHONY: install
 
-all: ./data/pretrain/buffer.pkl
+all: final
 
 SITE_PACKAGES := $(shell pip show pip | grep '^Location' | cut -f2 -d':')
 python-setup: $(SITE_PACKAGES)
@@ -31,26 +31,24 @@ $(SITE_PACKAGES): requirements.txt
 ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet: ./nem-data/README.md
 	nem -s 2015-01 -e 2020-12 -r trading-price
 
-#  third party / input datasets
-external-datasets: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
-
 #  create ML datasets from our price data
-./data/attention/test/features/2020-12-30.npy: ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
-	python3 create_datasets.py attention
+./data/$(DATASET)/test/features/2020-12-30.npy: ./energy-py-linear/README.md ./energy-py/README.md ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet ~/nem-data/data/TRADINGPRICE/2020-12/clean.parquet
+	python3 create_datasets.py $(DATASET)
 
 #  run the linear program over our data
-./data/linear/test/2020-12-30.json: ./data/attention/test/features/2020-12-30.npy
-	python3 linear.py attention
+./data/linear/test/2020-12-30.json: ./data/$(DATASET)/test/features/2020-12-30.npy
+	python3 linear.py $(DATASET)
 
 #  fill our buffer with experience that mimics our linear program
 ./data/pretrain/buffer.pkl: ./data/linear/test/2020-12-30.json
-	python3 bootstrap_experience.py ./attention.json
+	python3 bootstrap_experience.py $(DATASET) ./$(DATASET).json
 
 #  pretrain our network
 ./pretrain/run-one/checkpoints/: ./data/pretrain/buffer.pkl
-	python3 pretrain.py ./attention.json
-
-pretrain: ./pretrain/run-one/checkpoints/
+	python3 pretrain.py ./$(DATASET).json
 
 final: ./pretrain/run-one/checkpoints/ ./run_pretrain.py
 	python3 run_pretrain.py
+
+clean:
+	rm -rf data pretrain
