@@ -10,16 +10,15 @@ from energypy import checkpoint
 @click.argument('hyp', type=click.Path(exists=True))
 def cli(hyp):
     hyp = json_util.load(hyp)
-    hyp["env"]["n_batteries"] = 1
 
     env = make(**hyp['env'])
-    buffer = memory.load('./data/pretrain/buffer.pkl')
+    buffer = memory.load('./data/pretrain/initial-buffer.pkl')
 
 #  very similar to init_fresh
     nets = init.init_nets(env, hyp)
     optimizers = init.init_optimizers(hyp)
     counters = defaultdict(int)
-    writer = utils.Writer('pretrain', counters, './pretrain/run-one')
+    writer = utils.Writer('pretrain', counters, './data/pretrain/run-one')
 
     target_entropy = nets.pop('target_entropy')
     hyp['target-entropy'] = target_entropy
@@ -29,7 +28,7 @@ def cli(hyp):
 #  train on buffer
     epoch_len = int(len(buffer) / hyp['batch-size'])
     global_step = 0
-    for epoch in range(80):
+    for epoch in range(10):
         for step in range(epoch_len):
             print(f' epoch: {epoch}, step: {step} of {epoch_len}')
             #  randomly sample each time
@@ -47,17 +46,18 @@ def cli(hyp):
             )
             global_step += 1
 
-        checkpoint.save(
-            hyp,
-            nets,
-            optimizers,
-            buffer,
-            step,
-            rewards={"test-reward": 0},
-            counters={"count": 0},
-            paths=None,
-            path=f'./pretrain/run-one/checkpoints/epoch-{epoch}-step-{step}-cglobal-{global_step}'
-        )
+    #  only save the last step
+    checkpoint.save(
+        hyp,
+        nets,
+        optimizers,
+        buffer,
+        step,
+        rewards={"test-reward": 0},
+        counters={"count": 0},
+        paths=None,
+        path=f'./data/pretrain/run-one/checkpoints/epoch-{epoch}-step-{step}-cglobal-{global_step}'
+    )
 
 
 if __name__ == '__main__':

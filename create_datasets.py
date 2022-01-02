@@ -99,8 +99,9 @@ def sample_date(date, data):
 
 def create_dataset_attention(horizons, subset=None):
     """
+    Create prices of shape: (batch, 1)
     Create features of shape: (batch, seq_len, features)
-    Create prices of shape: (batch, seq_len, 1)
+    Create mask of shape: (batch, seq_len, seq_len)
     """
     print("\ncreating attention dataset")
 
@@ -120,20 +121,14 @@ def create_dataset_attention(horizons, subset=None):
 
         #  create features that are the future prices (perfect foresight!)
         hrzns = create_horizons(raw, horizons=horizons, col="price")
+
         #  there is no way no fill in these values that are horizoned at the end of our dataset,
         #  therefore -> drop rows
         hrzns = hrzns.dropna(axis=0)
 
-        #  add a robust encoding of the prices as our features
-        robust, encoders = transform(
-            hrzns,
-            encoders,
-            "robust",
-            train=stage == "train",
-        )
-
-        #  our features are shorter than our prices -> drop rows again
-        features = pd.concat([raw, robust], axis=1).dropna(axis=0)
+        #  our features are now shorter than our prices -> concat & drop rows again
+        #  this df has our price data in as well as the horizons
+        features = pd.concat([raw, hrzns], axis=1).dropna(axis=0)
         assert features.isnull().sum().sum() == 0
 
         days = sorted(make_days(features))
@@ -144,18 +139,39 @@ def create_dataset_attention(horizons, subset=None):
                 print(f"  {day} not long enough")
             else:
                 print(f"  {day} is long enough")
-                prices = ds.loc[:, "price"].to_frame()
-                feat = ds.drop("price", axis=1)
-                mask = (~create_horizons(prices, horizons, "price").isnull()).astype(int)
+                prices = ds.loc[:, "price"].values.reshape(-1, 1)
+
+                #  one feature in a sequence - batched
+                feat = ds.drop("price", axis=1).values.reshape(ds.shape[0], -1, 1)
+
+                #  what I want to do is a daily encoding of the prices into quantiles
+                #  do this outside of transform() as I don't want to remember the encoder ever
+                encoder_params={
+                    'n_quantiles': feat.shape[1],
+                    'subsample': feat.shape[1],
+                    'output_distribution': 'uniform'
+                }
+                enc = encoders['quantile'](**encoder_params)
+                quantiles = enc.fit_transform(feat.reshape(feat.shape[0], -1))
+                quantiles = quantiles.reshape(quantiles.shape[0], -1, 1)
+
+                #  concat across the feature dim
+                feat = np.concatenate([feat, quantiles], axis=2)
+                assert feat.shape[2] == 2
+
+                mask = (~create_horizons(
+                    pd.DataFrame({'price': prices.flatten()}, index=range(prices.shape[0])),
+                    horizons,
+                    "price"
+                ).isnull()).astype(int)
 
                 #  need to play games to get mask into shape (batch, features, features)
                 #  see https://www.tensorflow.org/api_docs/python/tf/keras/layers/MultiHeadAttention
                 seq_len = feat.shape[1]
-                feat = feat.values.reshape(-1, seq_len, 1)
+                n_feat = feat.shape[2]
                 mask = np.repeat(mask.values, seq_len, axis=1).reshape(
                     -1, seq_len, seq_len
                 )
-                prices = prices.values.reshape(-1, 1)
 
                 path = Path.cwd() / "data" / "attention" / stage
                 path.mkdir(exist_ok=True, parents=True)
@@ -195,8 +211,6 @@ def make_price_features(data):
 
 def create_dataset_dense(horizons, subset=None):
     """
-    Uses the results of create_dataset_attention
-
     Create features of shape: (batch, features)
     Create prices of shape: (batch, 1)
     """

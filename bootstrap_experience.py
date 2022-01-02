@@ -38,49 +38,56 @@ def cli(dataset, hyp):
     train_eps = [d for d in (Path.cwd() / 'data' / "linear" / "train").iterdir() if d.suffix == ".json"]
     print(f"loaded {len(train_eps)} train episodes")
 
-    buffer = None
+    n_times_filled = 0
     check = []
-    for ep in train_eps:
-        print(f"\n{ep}")
 
-        linear_results = json.loads(ep.read_text())
-        linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
+    #  make an env to make a memory
+    hyp["env"]["n_batteries"] = 1
+    env = energypy.make(**hyp["env"])
+    buffer = memory.make(env, {
+        "buffer-size": hyp['buffer-size']
+    })
 
-        rl_episode = load_rl_episode(ep.stem, dataset)
+    while not buffer.full:
+        for ep in train_eps:
+            print(f"\n{ep}, {100 * buffer.cursor / buffer.size}, {buffer.full}, {n_times_filled}")
 
-        hyp["env"]["dataset"] = {
-            "name": f"nem-dataset-{dataset}",
-            "train_episodes": [rl_episode,],
-            "test_episodes": [rl_episode,],
-            "price_col": "price"
-        }
-        hyp["env"]["n_batteries"] = 1
+            linear_results = json.loads(ep.read_text())
+            linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
 
-        #  make an env to make a memory
-        env = energypy.make(**hyp["env"])
+            rl_episode = load_rl_episode(ep.stem, dataset)
 
-        if buffer is None:
-            buffer = memory.make(env, {"buffer-size": len(train_eps) * 48})
+            hyp["env"]["dataset"] = {
+                "name": f"nem-dataset-{dataset}",
+                "train_episodes": [rl_episode,],
+                "test_episodes": [rl_episode,],
+                "price_col": "price"
+            }
 
-        #  make a fixed policy that follows the linear program
-        policy = energypy.make("fixed-policy", env=env, actions=linear_results["scaled-action"])
+            #  make a fixed policy that follows the linear program
+            policy = energypy.make("fixed-policy", env=env, actions=linear_results["scaled-action"])
 
-        #  run the episode following this policy
-        results = episode(env, buffer, policy, hyp, counters=defaultdict(int), mode="train")
-        linear_results['rl_episode_reward'] = float(results)
+            #  run the episode following this policy
+            #  this fills the memory
+            results = episode(env, buffer, policy, hyp, counters=defaultdict(int), mode="train")
 
-        out = Path.cwd() / 'data' / 'pretrain' / ep.name
-        print(f' saving to {out}')
-        out.parent.mkdir(exist_ok=True, parents=True)
-        out.write_text(json.dumps(linear_results))
-        check.append({
-            "rl-reward": linear_results['rl_episode_reward'],
-            "linear-cost": linear_results['cost'],
-            "difference": linear_results['rl_episode_reward'] + linear_results['cost']
-        })
+            #  only save once
+            if n_times_filled == 0:
+                linear_results['rl_episode_reward'] = float(results)
+                out = Path.cwd() / 'data' / 'pretrain' / ep.name
+                print(f' saving to {out}')
+                out.parent.mkdir(exist_ok=True, parents=True)
+                out.write_text(json.dumps(linear_results))
+                check.append({
+                    "rl-reward": linear_results['rl_episode_reward'],
+                    "linear-cost": linear_results['cost'],
+                    "difference": linear_results['rl_episode_reward'] + linear_results['cost']
+                })
+
+        n_times_filled += 1
 
     #  save the buffer
-    memory.save(buffer, './data/pretrain/buffer.pkl')
+    memory.save(buffer, './data/pretrain/initial-buffer.pkl')
     assert buffer.full
 
     #  save the check
