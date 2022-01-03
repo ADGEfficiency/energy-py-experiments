@@ -14,7 +14,7 @@ def evaulate_checkpoints(run_path, sort_func):
 
 
 if __name__ == '__main__':
-    cp = evaulate_checkpoints('./data/pretrain/run-one', sort_func)
+    cp = evaulate_checkpoints('./data/pretrain/', sort_func)
     print(f" loaded {cp['path']}")
     expt = init_checkpoint(cp['path'])
     main(**expt)

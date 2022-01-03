@@ -71,7 +71,7 @@ def cli(dataset, hyp):
             #  this fills the memory
             results = episode(env, buffer, policy, hyp, counters=defaultdict(int), mode="train")
 
-            #  only save once
+            #  only save the episode results once
             if n_times_filled == 0:
                 linear_results['rl_episode_reward'] = float(results)
                 out = Path.cwd() / 'data' / 'pretrain' / ep.name

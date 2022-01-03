@@ -12,20 +12,27 @@ def cli(hyp):
     hyp = json_util.load(hyp)
 
     env = make(**hyp['env'])
-    buffer = memory.load('./data/pretrain/initial-buffer.pkl')
+    buffer = memory.load(
+        hyp['buffer'],
+        # './data/pretrain/initial-buffer.pkl'
+    )
 
-#  very similar to init_fresh
+    #  very similar to init_fresh
     nets = init.init_nets(env, hyp)
     optimizers = init.init_optimizers(hyp)
     counters = defaultdict(int)
-    writer = utils.Writer('pretrain', counters, './data/pretrain/run-one')
+    writer = utils.Writer(
+        'pretrain',
+        counters,
+        './data/pretrain/'
+    )
 
     target_entropy = nets.pop('target_entropy')
     hyp['target-entropy'] = target_entropy
 
     print(f' buffer len {len(buffer)}')
 
-#  train on buffer
+    #  train on buffer
     epoch_len = int(len(buffer) / hyp['batch-size'])
     global_step = 0
     for epoch in range(10):
@@ -56,10 +63,9 @@ def cli(hyp):
         rewards={"test-reward": 0},
         counters={"count": 0},
         paths=None,
-        path=f'./data/pretrain/run-one/checkpoints/epoch-{epoch}-step-{step}-cglobal-{global_step}'
+        path=f'./data/pretrain/checkpoints/epoch-{epoch}-step-{step}-cglobal-{global_step}'
     )
 
 
 if __name__ == '__main__':
     cli()
-

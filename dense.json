@@ -2,18 +2,18 @@
     "initial-log-alpha": 0.0,
     "gamma": 0.99,
     "rho": 0.995,
-    "buffer-size": 5e5,
+    "buffer-size": 800000,
     "reward-scale": 500,
     "lr": 3e-4,
     "lr-alpha": 3e-5,
-    "batch-size": 1024,
+    "batch-size": 2048,
     "n-episodes": 20000,
     "test-every": 128,
     "n-tests": "all",
     "buffer": "./data/pretrain/initial-buffer.pkl",
     "env": {
         "name": "battery",
-        "initial_charge": 0.0,
+        "initial_charge": "random",
         "episode_length": 48,
         "n_batteries": 16,
         "dataset": {
@@ -25,7 +25,8 @@
     },
     "network": {
       "name": "dense",
-      "size_scale": 8
+      "size_scale": 4
     },
-    "seed": 42
+    "seed": 42,
+    "run-name": "dense"
 }

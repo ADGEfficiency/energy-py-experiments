@@ -51,4 +51,4 @@ final: ./data/pretrain/run-one/checkpoints/ ./run_pretrain.py
 	python3 run_pretrain.py
 
 clean:
-	rm -rf data pretrain
+	rm -rf data pretrain experiments

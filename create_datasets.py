@@ -48,8 +48,7 @@ def create_horizons(data, horizons=48, col="trading-price", rename_cols=True):
     features = [data[col].shift(-h) for h in range(horizons)]
     features = pd.concat(features, axis=1)
     if rename_cols:
-        features.columns = [f"h-{n}-{col}" for n in range(features.shape[1])]
-
+        features.columns = [f"hrzn-{n}-{col}" for n in range(features.shape[1])]
     return features
 
 
@@ -236,35 +235,37 @@ def create_dataset_dense(horizons, subset=None):
         #  therefore -> drop rows
         hrzns = hrzns.dropna(axis=0)
 
-        log, encoders = transform(
-            hrzns,
-            encoders,
-            'log',
-            train=stage == 'train',
-        )
-        quantile, encoders = transform(
-            hrzns,
-            encoders,
-            'quantile',
-            train=stage == 'train',
-            encoder_params={
-                'n_quantiles': hrzns.shape[0],
-                'subsample': hrzns.shape[0],
-                'output_distribution': 'uniform'
-            }
-        )
+        # log, encoders = transform(
+        #     hrzns,
+        #     encoders,
+        #     'log',
+        #     train=stage == 'train',
+        # )
+        # quantile, encoders = transform(
+        #     hrzns,
+        #     encoders,
+        #     'quantile',
+        #     train=stage == 'train',
+        #     encoder_params={
+        #         'n_quantiles': hrzns.shape[0],
+        #         'subsample': hrzns.shape[0],
+        #         'output_distribution': 'uniform'
+        #     }
+        # )
 
-        mask_vals = {
-            'h-0-quantile-feature': quantile.min().min(),
-            'h-0-log-feature': log.min().min(),
-        }
+        # mask_vals = {
+        #     'h-0-quantile-feature': quantile.min().min(),
+        #     'h-0-log-feature': log.min().min(),
+        # }
 
-        assert hrzns.shape[0] == log.shape[0] == quantile.shape[0]
+        # assert hrzns.shape[0] == log.shape[0] == quantile.shape[0]
 
-        for d in [hrzns, log, quantile]:
-            assert d.isnull().sum().sum() == 0
+        # for d in [hrzns, log, quantile]:
+        #     assert d.isnull().sum().sum() == 0
 
-        features = pd.concat([quantile, log, prices], axis=1).dropna(axis=0)
+        # features = pd.concat([quantile, log, prices], axis=1).dropna(axis=0)
+
+        features = pd.concat([hrzns, prices], axis=1).dropna(axis=0)
         assert features.isnull().sum().sum() == 0
 
         days = sorted(make_days(features))
@@ -279,8 +280,19 @@ def create_dataset_dense(horizons, subset=None):
 
                 ds = make_time_features(ds)
                 ds = make_price_features(ds)
-
                 prices = ds.iloc[:, 0].to_frame()
+
+                cols = [c for c in ds.columns if 'hrzn' in c]
+                sub = ds[cols]
+                encoder_params={
+                    'n_quantiles': ds.shape[1],
+                    'subsample': ds.shape[1],
+                    'output_distribution': 'uniform'
+                }
+                enc = QuantileTransformer(**encoder_params)
+                daily_quantiles = enc.fit_transform(sub)
+                ds[cols] = daily_quantiles
+
                 #  create the masks - that mask out next day
                 if next_ep_mask is None:
                     print('next ep mask creation')
@@ -292,8 +304,10 @@ def create_dataset_dense(horizons, subset=None):
                     )
                     next_ep_mask = mask.isnull()
 
+                mask_vals = {'hrzn-0-price': 0.5}
+
                 #  apply the masks
-                for col_include in ['log', 'quantile']:
+                for col_include in ['hrzn']:
                     cols = [c for c in ds.columns if col_include in c]
                     subset = ds.loc[:, cols]
                     mask_val = mask_vals[cols[0]]
