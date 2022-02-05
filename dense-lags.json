@@ -18,8 +18,8 @@
         "n_batteries": 16,
         "dataset": {
           "name": "nem-dataset-dense",
-          "train_episodes": "./data/dense/train/",
-          "test_episodes": "./data/dense/test/",
+          "train_episodes": "./data/dense-lags/train/",
+          "test_episodes": "./data/dense-lags/test/",
           "price_col": "prices"
         }
     },
@@ -28,5 +28,6 @@
       "size_scale": 4
     },
     "seed": 42,
-    "run-name": "dense-lags"
+    "run-name": "dense-lags",
+    "dataset": "dense-lags"
 }
