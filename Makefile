@@ -40,15 +40,16 @@ $(SITE_PACKAGES): requirements.txt
 	python3 linear.py $(DATASET)
 
 #  fill our buffer with experience that mimics our linear program
-./data/pretrain/initial-buffer.pkl: ./data/linear/test/2020-12-30.json
-	python3 bootstrap_experience.py $(DATASET) ./$(DATASET).json
+./data/$(DATASET)/pretrain/initial-buffer/meta.json: ./data/linear/test/2020-12-30.json
+	python3 bootstrap_experience.py ./$(DATASET).json
+pretrained-buffer: ./data/$(DATASET)/pretrain/initial-buffer/meta.json
 
 #  pretrain our network
-./data/pretrain/run-one/checkpoints/: ./data/pretrain/initial-buffer.pkl
+./data/pretrain/run-one/checkpoints/: pretrained-buffer
 	python3 pretrain.py ./$(DATASET).json
 
 final: ./data/pretrain/run-one/checkpoints/ ./run_pretrain.py
-	python3 run_pretrain.py
+	python3 run_pretrain.py ./$(DATASET).json
 
 clean:
 	rm -rf data pretrain experiments

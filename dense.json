@@ -10,7 +10,7 @@
     "n-episodes": 20000,
     "test-every": 128,
     "n-tests": "all",
-    "buffer": "./data/pretrain/initial-buffer.pkl",
+    "buffer": "./data/dense-lags/pretrain/initial-buffer",
     "env": {
         "name": "battery",
         "initial_charge": "random",
@@ -28,5 +28,5 @@
       "size_scale": 4
     },
     "seed": 42,
-    "run-name": "dense"
+    "run-name": "dense-lags"
 }

@@ -4,6 +4,7 @@ import numpy as np
 
 import click
 import pandas as pd
+from rich.progress import track
 
 import energypylinear as epl
 
@@ -19,8 +20,9 @@ def main(dataset):
         raw_path = Path.cwd() / "data" / dataset / stage
 
         path = Path.cwd() / "data" / "linear" / stage
+        print(f" saving linear results to {path}")
 
-        for day in [d for d in (raw_path / "prices").iterdir() if d.suffix == ".npy"]:
+        for day in tracked([d for d in (raw_path / "prices").iterdir() if d.suffix == ".npy"]):
 
             prices = np.load(day).reshape(-1)
 

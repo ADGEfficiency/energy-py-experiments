@@ -1,5 +1,8 @@
 # energypy experiments - the finale
 
+todo
+- shuffle training data?
+- i don't shuffle episode order (which is ok?)
 
 Dependencies
 

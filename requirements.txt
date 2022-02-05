@@ -4,3 +4,4 @@ pyarrow
 pyarrow
 fastparquet
 click
+rich

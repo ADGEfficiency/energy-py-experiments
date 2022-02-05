@@ -3,6 +3,7 @@ from pathlib import Path
 import click
 import numpy as np
 import pandas as pd
+from rich.progress import track
 from sklearn.preprocessing import (
     QuantileTransformer,
     FunctionTransformer,
@@ -43,13 +44,29 @@ def split_train_test(data, split=0.8):
     return train, test
 
 
-def create_horizons(data, horizons=48, col="trading-price", rename_cols=True):
-    print(f"  creating {horizons} horizons of {col}")
-    features = [data[col].shift(-h) for h in range(horizons)]
-    features = pd.concat(features, axis=1)
-    if rename_cols:
-        features.columns = [f"hrzn-{n}-{col}" for n in range(features.shape[1])]
-    return features
+def create_horizons(
+    data,
+    horizons=None,
+    lags=None,
+    col="trading-price",
+    rename_cols=True
+):
+    #  if pass horizons, return only horizons
+    if horizons:
+        print(f"  creating {horizons} horizons of {col}")
+        features = [data[col].shift(-h) for h in range(horizons)]
+        features = pd.concat(features, axis=1)
+        if rename_cols:
+            features.columns = [f"hrzn-{n}-{col}" for n in range(features.shape[1])]
+        return features
+
+    if lags:
+        print(f"  creating {lags} lags of {col}")
+        features = [data[col].shift(h) for h in range(lags)]
+        features = pd.concat(features, axis=1)
+        if rename_cols:
+            features.columns = [f"lag-{n}-{col}" for n in range(features.shape[1])]
+        return features
 
 
 def transform(
@@ -96,6 +113,149 @@ def sample_date(date, data):
         return data.loc[mask, :]
 
 
+def make_time_features(data):
+    """done on one episode at a time"""
+    time = [t / data.shape[0] for t in range(data.shape[0])]
+    #  avoid chained assignment error
+    data = data.copy()
+    data.loc[:, 'time-to-go'] = time
+    return data
+
+
+def make_price_features(data):
+    """done on one episode at a time"""
+    data['medium-price'] = 0
+    mask = data['price'] > 300
+    data.loc[mask, 'medium-price'] = 1
+
+    data['high-price'] = 0
+    mask = data['price'] > 800
+    data.loc[mask, 'high-price'] = 1
+    return data
+
+def add_masked_transform(
+    ds,
+    prices,
+    horizons=None,
+    lags=None,
+    incl='hrzn',
+    next_ep_mask=None,
+):
+    cols = [c for c in ds.columns if incl in c]
+    sub = ds[cols]
+    encoder_params={
+        'n_quantiles': ds.shape[0],
+        'subsample': ds.shape[1],
+        'output_distribution': 'uniform'
+    }
+    enc = QuantileTransformer(**encoder_params)
+    daily_quantiles = enc.fit_transform(sub)
+    ds[cols] = daily_quantiles
+
+    #  create the masks - that mask out next day
+    if next_ep_mask is None:
+        mask = create_horizons(
+            prices,
+            horizons=horizons,
+            lags=lags,
+            col=prices.columns[0],
+            rename_cols=True
+        )
+        next_ep_mask = mask.isnull()
+    mask_vals = {f'{incl}-0-price': 0.5}
+
+    #  apply the masks
+    for col_include in [incl,]:
+        cols = [c for c in ds.columns if col_include in c]
+        subset = ds.loc[:, cols]
+        mask_val = mask_vals[cols[0]]
+        subset.values[next_ep_mask] = mask_val
+        ds.loc[:, cols] = subset
+
+    return ds, next_ep_mask
+
+
+def create_dataset_dense(
+    horizons=None,
+    lags=None,
+    subset=None,
+    name="dense"
+):
+    """
+    Create features of shape: (batch, features)
+    Create prices of shape: (batch, 1)
+    """
+    print(f"creating {name} dataset")
+    #  has to be local scope
+    encoders = {
+        "log": PowerTransformer,
+        "quantile": QuantileTransformer,
+        "robust": RobustScaler,
+    }
+
+    data = load_nem_data(subset=subset).drop("REGIONID", axis=1)
+    train, test = split_train_test(data, split=0.8)
+    datasets = (("train", train), ("test", test))
+
+    for stage, raw in datasets:
+        print(f"\n processing {stage}, {data.shape}")
+
+        path = Path.cwd() / "data" / name / stage
+        path.mkdir(exist_ok=True, parents=True)
+        print(' saving to {path}')
+
+        prices = raw.loc[:, "price"].to_frame()
+        pkg = [prices,]
+
+        if horizons:
+            #  create features that are the future prices (perfect foresight!)
+            hrzns = create_horizons(raw, horizons=horizons, col="price")
+            #  there is no way no fill in these values that are horizoned at the end of our dataset,
+            #  therefore -> drop rows
+            pkg.append(hrzns.dropna(axis=0))
+
+        if lags:
+            #  create features that are the future prices (perfect foresight!)
+            lgs = create_horizons(raw, lags=lags, col="price")
+            #  there is no way no fill in these values that are horizoned at the end of our dataset,
+            #  therefore -> drop rows
+            pkg.append(lgs.dropna(axis=0))
+
+        features = pd.concat(pkg, axis=1).dropna(axis=0)
+        assert features.isnull().sum().sum() == 0
+
+        days = sorted(make_days(features))
+        print(f"  features: start: {days[0]} end: {days[-1]} num: {len(days)}")
+
+        next_ep_mask = None
+
+        for day in track(days, description="Days:"):
+
+            if (ds := sample_date(day, features)) is None:
+                print(f"  {day} not long enough")
+            else:
+                ds = make_time_features(ds)
+                ds = make_price_features(ds)
+                prices = ds.iloc[:, 0].to_frame()
+
+                if horizons:
+                    ds, next_ep_mask = add_masked_transform(ds, prices, horizons=horizons, incl='hrzn', next_ep_mask=next_ep_mask)
+                if lags:
+                    ds, next_ep_mask = add_masked_transform(ds, prices, lags=lags, incl='lag', next_ep_mask=next_ep_mask)
+
+                assert ds.isnull().sum().sum() == 0
+
+                day = day.strftime("%Y-%m-%d")
+
+                ds = ds.values.reshape(prices.shape[0], -1)
+                prices = prices.values.reshape(prices.shape[0], 1)
+
+                for fi, d in [("features", ds), ("prices", prices)]:
+                    p = path / fi / f"{day}.npy"
+                    p.parent.mkdir(exist_ok=True)
+                    np.save(p, d)
+
+
 def create_dataset_attention(horizons, subset=None):
     """
     Create prices of shape: (batch, 1)
@@ -137,7 +297,6 @@ def create_dataset_attention(horizons, subset=None):
             if (ds := sample_date(day, features)) is None:
                 print(f"  {day} not long enough")
             else:
-                print(f"  {day} is long enough")
                 prices = ds.loc[:, "price"].values.reshape(-1, 1)
 
                 #  one feature in a sequence - batched
@@ -187,160 +346,28 @@ def create_dataset_attention(horizons, subset=None):
                     print(f" saved to {p}")
 
 
-def make_time_features(data):
-    """done on one episode at a time"""
-    time = [t / data.shape[0] for t in range(data.shape[0])]
-    #  avoid chained assignment error
-    data = data.copy()
-    data.loc[:, 'time-to-go'] = time
-    return data
-
-
-def make_price_features(data):
-    """done on one episode at a time"""
-    data['medium-price'] = 0
-    mask = data['price'] > 300
-    data.loc[mask, 'medium-price'] = 1
-
-    data['high-price'] = 0
-    mask = data['price'] > 800
-    data.loc[mask, 'high-price'] = 1
-    return data
-
-
-def create_dataset_dense(horizons, subset=None):
-    """
-    Create features of shape: (batch, features)
-    Create prices of shape: (batch, 1)
-    """
-    print("creating dense dataset")
-    #  has to be local scope
-    encoders = {
-        "log": PowerTransformer,
-        "quantile": QuantileTransformer,
-        "robust": RobustScaler,
-    }
-
-    data = load_nem_data(subset=subset).drop("REGIONID", axis=1)
-    train, test = split_train_test(data, split=0.8)
-    datasets = (("train", train), ("test", test))
-
-    for stage, raw in datasets:
-        print(f"\n processing {stage}, {data.shape}")
-        prices = raw.loc[:, "price"].to_frame()
-
-        #  create features that are the future prices (perfect foresight!)
-        hrzns = create_horizons(raw, horizons=horizons, col="price")
-        #  there is no way no fill in these values that are horizoned at the end of our dataset,
-        #  therefore -> drop rows
-        hrzns = hrzns.dropna(axis=0)
-
-        # log, encoders = transform(
-        #     hrzns,
-        #     encoders,
-        #     'log',
-        #     train=stage == 'train',
-        # )
-        # quantile, encoders = transform(
-        #     hrzns,
-        #     encoders,
-        #     'quantile',
-        #     train=stage == 'train',
-        #     encoder_params={
-        #         'n_quantiles': hrzns.shape[0],
-        #         'subsample': hrzns.shape[0],
-        #         'output_distribution': 'uniform'
-        #     }
-        # )
-
-        # mask_vals = {
-        #     'h-0-quantile-feature': quantile.min().min(),
-        #     'h-0-log-feature': log.min().min(),
-        # }
-
-        # assert hrzns.shape[0] == log.shape[0] == quantile.shape[0]
-
-        # for d in [hrzns, log, quantile]:
-        #     assert d.isnull().sum().sum() == 0
-
-        # features = pd.concat([quantile, log, prices], axis=1).dropna(axis=0)
-
-        features = pd.concat([hrzns, prices], axis=1).dropna(axis=0)
-        assert features.isnull().sum().sum() == 0
-
-        days = sorted(make_days(features))
-        print(f"  features: start: {days[0]} end: {days[-1]} num: {len(days)}")
-
-        next_ep_mask = None
-        for day in days:
-            if (ds := sample_date(day, features)) is None:
-                print(f"  {day} not long enough")
-            else:
-                print(f"  {day} is long enough")
-
-                ds = make_time_features(ds)
-                ds = make_price_features(ds)
-                prices = ds.iloc[:, 0].to_frame()
-
-                cols = [c for c in ds.columns if 'hrzn' in c]
-                sub = ds[cols]
-                encoder_params={
-                    'n_quantiles': ds.shape[1],
-                    'subsample': ds.shape[1],
-                    'output_distribution': 'uniform'
-                }
-                enc = QuantileTransformer(**encoder_params)
-                daily_quantiles = enc.fit_transform(sub)
-                ds[cols] = daily_quantiles
-
-                #  create the masks - that mask out next day
-                if next_ep_mask is None:
-                    print('next ep mask creation')
-                    mask = create_horizons(
-                        prices,
-                        horizons=horizons,
-                        col=prices.columns[0],
-                        rename_cols=True
-                    )
-                    next_ep_mask = mask.isnull()
-
-                mask_vals = {'hrzn-0-price': 0.5}
-
-                #  apply the masks
-                for col_include in ['hrzn']:
-                    cols = [c for c in ds.columns if col_include in c]
-                    subset = ds.loc[:, cols]
-                    mask_val = mask_vals[cols[0]]
-                    subset.values[next_ep_mask] = mask_val
-                    ds.loc[:, cols] = subset
-
-                assert ds.isnull().sum().sum() == 0
-
-                path = Path.cwd() / "data" / "dense" / stage
-                path.mkdir(exist_ok=True, parents=True)
-                day = day.strftime("%Y-%m-%d")
-
-                ds = ds.values.reshape(prices.shape[0], -1)
-                prices = prices.values.reshape(prices.shape[0], 1)
-
-                for name, d in [
-                    ("features", ds),
-                    ("prices", prices),
-                ]:
-                    p = path / name / f"{day}.npy"
-                    p.parent.mkdir(exist_ok=True)
-                    np.save(p, d)
-                    print(f" saved to {p}")
-
-
-
 @click.command()
 @click.argument("dataset")
-@click.option("--subset", default=None)
-@click.option("--horizons", default=24)
-def cli(dataset, subset, horizons):
-    datasets = {"dense": create_dataset_dense, "attention": create_dataset_attention}
-    datasets[dataset](subset=subset, horizons=horizons)
+def cli(dataset):
+    datasets = {
+        "dense": {
+            "fn": create_dataset_dense
+        },
+        "attention": {
+            "fn": create_dataset_attention
+        },
+        "dense-lags": {
+            "fn": create_dataset_dense,
+            "args": {
+                "horizons": None,
+                "lags": 48,
+                "name": "dense-lags"
+            }
+        },
+    }
+    #  will replace with reading from json
+    ds = datasets[dataset]
+    ds['fn'](**ds['args'])
 
 
 if __name__ == "__main__":

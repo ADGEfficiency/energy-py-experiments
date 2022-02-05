@@ -1,3 +1,5 @@
+import click
+
 from energypy import checkpoint
 from energypy.checkpoint import init_checkpoint
 from energypy.main import main
@@ -13,8 +15,15 @@ def evaulate_checkpoints(run_path, sort_func):
     return cps[-1]
 
 
-if __name__ == '__main__':
-    cp = evaulate_checkpoints('./data/pretrain/', sort_func)
+@click.command()
+@click.argument('hyp', type=click.Path(exists=True))
+def cli(hyp):
+    dataset = hyp['dataset']
+    cp = evaulate_checkpoints(f'./data/{dataset}/pretrain/', sort_func)
     print(f" loaded {cp['path']}")
     expt = init_checkpoint(cp['path'])
     main(**expt)
+
+
+if __name__ == '__main__':
+    cli()
