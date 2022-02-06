@@ -45,11 +45,11 @@ $(SITE_PACKAGES): requirements.txt
 pretrained-buffer: ./data/$(DATASET)/pretrain/initial-buffer/meta.json
 
 #  pretrain our network
-./data/pretrain/run-one/checkpoints/: pretrained-buffer
+./data/$(DATASET)/pretrain/checkpoints/%/actor.h5: pretrained-buffer
 	python3 pretrain.py ./$(DATASET).json
 
-final: ./data/pretrain/run-one/checkpoints/ ./run_pretrain.py
-	python3 run_pretrain.py ./$(DATASET).json
+final: ./data/$(DATASET)/pretrain/checkpoints/ ./run_pretrain.py
+	python3 run_pretrain.py $(DATASET)
 
 clean:
 	rm -rf data pretrain experiments

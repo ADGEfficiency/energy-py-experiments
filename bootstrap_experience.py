@@ -50,19 +50,16 @@ def cli(hyp):
         "buffer-size": hyp['buffer-size']
     })
 
-
     #  48 episode len ????
     total = buffer.size / 48
-
     path = Path.cwd() / 'data' / dataset / 'pretrain'
 
-
     with Progress() as progress:
-        task = progress.add_task("Filling buffer...", total=total)
+        task = progress.add_task("Filling buffer with optimal policy experience...", total=total)
 
         while not buffer.full:
-            progress.update(task)
             for ep in train_eps:
+                progress.update(task, advance=1)
 
                 linear_results = json.loads(ep.read_text())
                 linear_episode = pd.read_parquet(ep.with_suffix(".parquet"))
@@ -103,7 +100,7 @@ def cli(hyp):
 
     #  save the check
     dataset = hyp['dataset']
-    pd.DataFrame(check).to_csv('./data/{dataset}/pretrain/check.csv', index=False)
+    pd.DataFrame(check).to_csv(f'./data/{dataset}/pretrain/check.csv', index=False)
 
 
 if __name__ == '__main__':

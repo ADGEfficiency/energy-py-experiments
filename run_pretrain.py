@@ -16,9 +16,8 @@ def evaulate_checkpoints(run_path, sort_func):
 
 
 @click.command()
-@click.argument('hyp', type=click.Path(exists=True))
-def cli(hyp):
-    dataset = hyp['dataset']
+@click.argument('dataset')
+def cli(dataset):
     cp = evaulate_checkpoints(f'./data/{dataset}/pretrain/', sort_func)
     print(f" loaded {cp['path']}")
     expt = init_checkpoint(cp['path'])

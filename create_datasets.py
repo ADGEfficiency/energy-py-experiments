@@ -62,7 +62,8 @@ def create_horizons(
 
     if lags:
         print(f"  creating {lags} lags of {col}")
-        features = [data[col].shift(h) for h in range(lags)]
+        #  1 = dont include current price
+        features = [data[col].shift(h) for h in range(1, lags+1)]
         features = pd.concat(features, axis=1)
         if rename_cols:
             features.columns = [f"lag-{n}-{col}" for n in range(features.shape[1])]

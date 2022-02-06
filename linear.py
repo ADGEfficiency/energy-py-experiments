@@ -22,8 +22,10 @@ def main(dataset):
         path = Path.cwd() / "data" / "linear" / stage
         print(f" saving linear results to {path}")
 
-        for day in tracked([d for d in (raw_path / "prices").iterdir() if d.suffix == ".npy"]):
-
+        for day in track(
+            [d for d in (raw_path / "prices").iterdir() if d.suffix == ".npy"],
+            description=f"Running linear program for {stage} data..."
+        ):
             prices = np.load(day).reshape(-1)
 
             res = pd.DataFrame(battery.optimize(prices, initial_charge=0, freq="30T"))

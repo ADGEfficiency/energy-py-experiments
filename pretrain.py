@@ -41,11 +41,11 @@ def cli(hyp):
     n_epochs = 12
 
     with Progress() as progress:
-        epoch_task = progress.add_task("Epoch...", total=n_epochs)
+        epoch_task = progress.add_task("Epochs...", total=n_epochs)
 
         for epoch in range(n_epochs):
             progress.update(epoch_task, advance=1)
-            step_task = progress.add_task("Step...", total=epoch_len)
+            step_task = progress.add_task(f"Epoch {epoch}, Steps...", total=epoch_len)
 
             for step in range(epoch_len):
                 progress.update(step_task, advance=1)
