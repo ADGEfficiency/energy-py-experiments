@@ -48,7 +48,7 @@ pretrained-buffer: ./data/$(DATASET)/pretrain/initial-buffer/meta.json
 ./data/$(DATASET)/pretrain/checkpoints/%/actor.h5: pretrained-buffer
 	python3 pretrain.py ./$(DATASET).json
 
-final: ./data/$(DATASET)/pretrain/checkpoints/ ./run_pretrain.py
+final: ./data/$(DATASET)/pretrain/checkpoints/%/actor.h5 ./run_pretrain.py
 	python3 run_pretrain.py $(DATASET)
 
 clean:

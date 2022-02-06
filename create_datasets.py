@@ -203,7 +203,7 @@ def create_dataset_dense(
 
         path = Path.cwd() / "data" / name / stage
         path.mkdir(exist_ok=True, parents=True)
-        print(' saving to {path}')
+        print(f' saving to {path}')
 
         prices = raw.loc[:, "price"].to_frame()
         pkg = [prices,]
@@ -368,7 +368,7 @@ def cli(dataset):
     }
     #  will replace with reading from json
     ds = datasets[dataset]
-    ds['fn'](**ds['args'])
+    ds['fn'](**ds.get('args', {}))
 
 
 if __name__ == "__main__":

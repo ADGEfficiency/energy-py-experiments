@@ -1,0 +1,33 @@
+{
+    "initial-log-alpha": 0.0,
+    "gamma": 0.99,
+    "rho": 0.995,
+    "buffer-size": 800000,
+    "reward-scale": 500,
+    "lr": 3e-4,
+    "lr-alpha": 3e-5,
+    "batch-size": 2048,
+    "n-episodes": 20000,
+    "test-every": 128,
+    "n-tests": "all",
+    "buffer": "./data/dense/pretrain/initial-buffer",
+    "env": {
+        "name": "battery",
+        "initial_charge": "random",
+        "episode_length": 48,
+        "n_batteries": 16,
+        "dataset": {
+          "name": "nem-dataset-dense",
+          "train_episodes": "./data/dense/train/",
+          "test_episodes": "./data/dense/test/",
+          "price_col": "prices"
+        }
+    },
+    "network": {
+      "name": "dense",
+      "size_scale": 4
+    },
+    "seed": 42,
+    "run-name": "dense",
+    "dataset": "dense"
+}
